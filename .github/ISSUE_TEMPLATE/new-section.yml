@@ -1,0 +1,33 @@
+name: 節・章の追加提案
+description: 資料に無い事柄を足す提案。先に claude-code-guide/TODO.md に同じ項目が無いか確認する
+labels: ["content", "proposal"]
+body:
+  - type: input
+    id: topic
+    attributes:
+      label: 追加したい事柄
+    validations:
+      required: true
+  - type: input
+    id: placement
+    attributes:
+      label: 置き場所の案
+      description: どの章の、どの節の前後か（例 11 章の 11-3 の後）
+  - type: textarea
+    id: why
+    attributes:
+      label: 勉強会の受講者にとってなぜ必要か
+      description: 実務での効き目。この資料は「認知負荷の小さい順・実務で早く効く順」で並んでいる
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: 出典（公式ドキュメントの URL）
+  - type: checkboxes
+    id: confirmed
+    attributes:
+      label: 確認したこと
+      options:
+        - label: claude-code-guide/TODO.md に同じ項目が無い
+        - label: 公式ドキュメント（または Anthropic Engineering ブログ）に記載がある

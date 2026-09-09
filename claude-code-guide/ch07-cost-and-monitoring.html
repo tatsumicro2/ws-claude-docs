@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>コストと運用監視 — Claude Code 体系的入門</title>
+<meta name="description" content="トークンは有限で有料です。「速く動かす」ことと「安く動かす」ことは、多くの場合同じ施策——コンテキスト管理に帰着します。">
+<link rel="stylesheet" href="assets/style.css?v=78787a44">
+<link rel="stylesheet" href="assets/nav.css?v=25c28aba">
+</head>
+<body>
+<div class="wrap">
+
+<!-- NAV:START -->
+<nav class="sidebar" aria-label="目次">
+  <a class="sidebar-brand" href="index.html">Claude Code<em>体系的入門</em></a>
+  <p class="sidebar-label">Contents</p>
+  <ol class="toc-tree">
+    <li>
+      <div class="toc-ch-row">
+        <a class="toc-ch-link" href="ch00-about.html"><span class="toc-num">00</span><span>この資料について</span></a>
+        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-0" aria-label="この資料についての節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <ul class="toc-sections" id="toc-sec-0" hidden>
+        <li><a href="ch00-about.html#s0-1">狙い — 廃れない技術を主軸にする</a></li>
+        <li><a href="ch00-about.html#s0-2">情報ソースと記述の確度</a></li>
+      </ul>
+    </li>
+    <li>
+      <div class="toc-ch-row">
+        <a class="toc-ch-link" href="ch01-what-is-claude-code.html"><span class="toc-num">01</span><span>Claude Code とは</span></a>
+        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-1" aria-label="Claude Code とはの節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <ul class="toc-sections" id="toc-sec-1" hidden>
+        <li><a href="ch01-what-is-claude-code.html#s1-1">AI エージェントのコア技術</a></li>
+      </ul>
+    </li>
+    <li>
+      <div class="toc-ch-row">
+        <a class="toc-ch-link" href="ch02-basics-and-interface.html"><span class="toc-num">02</span><span>基本操作とインターフェース</span></a>
+        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-2" aria-label="基本操作とインターフェースの節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <ul class="toc-sections" id="toc-sec-2" hidden>
+        <li><a href="ch02-basics-and-interface.html#s2-1">CLI の起動パターンと主要フラグ</a></li>
+        <li><a href="ch02-basics-and-interface.html#s2-2">コマンド一覧（ワークフロー別）</a></li>
+        <li><a href="ch02-basics-and-interface.html#s2-3">対話モードのキー操作</a></li>
+        <li><a href="ch02-basics-and-interface.html#s2-4">権限モード</a></li>
+        <li><a href="ch02-basics-and-interface.html#s2-5">サーフェス（動作環境）</a></li>
+        <li><a href="ch02-basics-and-interface.html#s2-6">インストールと最初の起動</a></li>
+        <li><a href="ch02-basics-and-interface.html#s2-7">用途マップ</a></li>
+        <li><a href="ch02-basics-and-interface.html#s2-8">この章の持ち帰り</a></li>
+      </ul>
+    </li>
+    <li>
+      <div class="toc-ch-row">
+        <a class="toc-ch-link" href="ch03-core-mechanisms.html"><span class="toc-num">03</span><span>コアメカニズム</span></a>
+        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-3" aria-label="コアメカニズムの節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <ul class="toc-sections" id="toc-sec-3" hidden>
+        <li><a href="ch03-core-mechanisms.html#s3-1">エージェントループ</a></li>
+        <li><a href="ch03-core-mechanisms.html#s3-2">エージェントハーネス</a></li>
+        <li><a href="ch03-core-mechanisms.html#s3-3">モデルと努力レベル</a></li>
+        <li><a href="ch03-core-mechanisms.html#s3-4">組み込みツール</a></li>
+        <li><a href="ch03-core-mechanisms.html#s3-5">操作できる範囲</a></li>
+        <li><a href="ch03-core-mechanisms.html#s3-6">コンテキストウィンドウ</a></li>
+        <li><a href="ch03-core-mechanisms.html#s3-7">セッション・チェックポイント・巻き戻し</a></li>
+        <li><a href="ch03-core-mechanisms.html#s3-8">ツール別の落とし穴</a></li>
+        <li><a href="ch03-core-mechanisms.html#s3-9">原理 — 製品が変わっても残る事実</a></li>
+        <li><a href="ch03-core-mechanisms.html#s3-10">この章の持ち帰り</a></li>
+      </ul>
+    </li>
+    <li>
+      <div class="toc-ch-row">
+        <a class="toc-ch-link" href="ch04-memory-and-instructions.html"><span class="toc-num">04</span><span>記憶と指示</span></a>
+        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-4" aria-label="記憶と指示の節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <ul class="toc-sections" id="toc-sec-4" hidden>
+        <li><a href="ch04-memory-and-instructions.html#s4-1">2 系統の記憶</a></li>
+        <li><a href="ch04-memory-and-instructions.html#s4-2">CLAUDE.md の置き場所とスコープ</a></li>
+        <li><a href="ch04-memory-and-instructions.html#s4-3">CLAUDE.md の書き方</a></li>
+        <li><a href="ch04-memory-and-instructions.html#s4-4">rules によるパス限定</a></li>
+        <li><a href="ch04-memory-and-instructions.html#s4-5">自動メモリ（auto memory）</a></li>
+        <li><a href="ch04-memory-and-instructions.html#s4-6">指示が効かないときの診断</a></li>
+        <li><a href="ch04-memory-and-instructions.html#s4-7">この章の持ち帰り</a></li>
+      </ul>
+    </li>
+    <li>
+      <div class="toc-ch-row">
+        <a class="toc-ch-link" href="ch05-best-practices.html"><span class="toc-num">05</span><span>ベストプラクティス</span></a>
+        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-5" aria-label="ベストプラクティスの節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <ul class="toc-sections" id="toc-sec-5" hidden>
+        <li><a href="ch05-best-practices.html#s5-1">3 つの基本原則</a></li>
+        <li><a href="ch05-best-practices.html#s5-2">環境を整える</a></li>
+        <li><a href="ch05-best-practices.html#s5-3">対話の技法</a></li>
+        <li><a href="ch05-best-practices.html#s5-4">セッション管理とスケール</a></li>
+        <li><a href="ch05-best-practices.html#s5-5">よくある失敗パターン</a></li>
+        <li><a href="ch05-best-practices.html#s5-6">この章の持ち帰り</a></li>
+      </ul>
+    </li>
+    <li>
+      <div class="toc-ch-row">
+        <a class="toc-ch-link" href="ch06-progress-and-visibility.html"><span class="toc-num">06</span><span>進行状況の可視化</span></a>
+        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-6" aria-label="進行状況の可視化の節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <ul class="toc-sections" id="toc-sec-6" hidden>
+        <li><a href="ch06-progress-and-visibility.html#s6-1">可視化の対象</a></li>
+        <li><a href="ch06-progress-and-visibility.html#s6-2">タスクリスト</a></li>
+        <li><a href="ch06-progress-and-visibility.html#s6-3">動的ワークフロー</a></li>
+        <li><a href="ch06-progress-and-visibility.html#s6-4">実行中セッションの確認</a></li>
+        <li><a href="ch06-progress-and-visibility.html#s6-5">ゴール駆動の継続実行</a></li>
+        <li><a href="ch06-progress-and-visibility.html#s6-6">ステータスライン</a></li>
+        <li><a href="ch06-progress-and-visibility.html#s6-7">並列作業の選び方</a></li>
+        <li><a href="ch06-progress-and-visibility.html#s6-8">この章の持ち帰り</a></li>
+      </ul>
+    </li>
+    <li>
+      <div class="toc-ch-row is-current">
+        <a class="toc-ch-link" href="ch07-cost-and-monitoring.html" aria-current="page"><span class="toc-num">07</span><span>コストと運用監視</span></a>
+        <button class="toc-toggle" type="button" aria-expanded="true" aria-controls="toc-sec-7" aria-label="コストと運用監視の節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <ul class="toc-sections" id="toc-sec-7">
+        <li><a href="ch07-cost-and-monitoring.html#s7-1">課金の経路とプラン</a></li>
+        <li><a href="ch07-cost-and-monitoring.html#s7-2">何がトークンを消費するのか</a></li>
+        <li><a href="ch07-cost-and-monitoring.html#s7-3">プロンプトキャッシュ</a></li>
+        <li><a href="ch07-cost-and-monitoring.html#s7-4">言語ごとのトークン量</a></li>
+        <li><a href="ch07-cost-and-monitoring.html#s7-5">使用量の計測</a></li>
+        <li><a href="ch07-cost-and-monitoring.html#s7-6">使用量の削減</a></li>
+        <li><a href="ch07-cost-and-monitoring.html#s7-7">想定より多いときの診断</a></li>
+        <li><a href="ch07-cost-and-monitoring.html#s7-8">この章の持ち帰り</a></li>
+      </ul>
+    </li>
+    <li>
+      <div class="toc-ch-row">
+        <a class="toc-ch-link" href="ch08-glossary.html"><span class="toc-num">08</span><span>用語集</span></a>
+        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-8" aria-label="用語集の節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <ul class="toc-sections" id="toc-sec-8" hidden>
+        <li><a href="ch08-glossary.html#s8-1">コア概念</a></li>
+        <li><a href="ch08-glossary.html#s8-2">拡張・運用</a></li>
+        <li><a href="ch08-glossary.html#s8-3">この章の持ち帰り</a></li>
+      </ul>
+    </li>
+    <li>
+      <div class="toc-ch-row">
+        <a class="toc-ch-link" href="ch09-extension-overview.html"><span class="toc-num">09</span><span>拡張レイヤーの全体像</span></a>
+        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-9" aria-label="拡張レイヤーの全体像の節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <ul class="toc-sections" id="toc-sec-9" hidden>
+        <li><a href="ch09-extension-overview.html#s9-1">拡張機能の全体マップ</a></li>
+        <li><a href="ch09-extension-overview.html#s9-2">機能選択の早見表</a></li>
+        <li><a href="ch09-extension-overview.html#s9-3">導入トリガー</a></li>
+        <li><a href="ch09-extension-overview.html#s9-4">機能ペアの比較</a></li>
+        <li><a href="ch09-extension-overview.html#s9-5">機能別のコンテキストコスト</a></li>
+        <li><a href="ch09-extension-overview.html#s9-6">名前衝突時の優先順位</a></li>
+        <li><a href="ch09-extension-overview.html#s9-7">この章の持ち帰り</a></li>
+      </ul>
+    </li>
+    <li>
+      <div class="toc-ch-row">
+        <a class="toc-ch-link" href="ch10-skills.html"><span class="toc-num">10</span><span>Skills（スキル）</span></a>
+        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-10" aria-label="Skills（スキル）の節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <ul class="toc-sections" id="toc-sec-10" hidden>
+        <li><a href="ch10-skills.html#s10-1">スキルの基本</a></li>
+        <li><a href="ch10-skills.html#s10-2">最小構成とディレクトリ構造</a></li>
+        <li><a href="ch10-skills.html#s10-3">スキルの置き場所と優先順位</a></li>
+        <li><a href="ch10-skills.html#s10-4">主要フロントマターフィールド</a></li>
+        <li><a href="ch10-skills.html#s10-5">引数と動的コンテキスト注入</a></li>
+        <li><a href="ch10-skills.html#s10-6">スキルのライフサイクルと評価</a></li>
+        <li><a href="ch10-skills.html#s10-7">バンドルされたスキル</a></li>
+        <li><a href="ch10-skills.html#s10-8">この章の持ち帰り</a></li>
+      </ul>
+    </li>
+    <li>
+      <div class="toc-ch-row">
+        <a class="toc-ch-link" href="ch11-subagents.html"><span class="toc-num">11</span><span>Subagents と並列実行</span></a>
+        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-11" aria-label="Subagents と並列実行の節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <ul class="toc-sections" id="toc-sec-11" hidden>
+        <li><a href="ch11-subagents.html#s11-1">コンテキスト分離の効果</a></li>
+        <li><a href="ch11-subagents.html#s11-2">カスタムサブエージェントの定義</a></li>
+        <li><a href="ch11-subagents.html#s11-3">主要フロントマターフィールド</a></li>
+        <li><a href="ch11-subagents.html#s11-4">サブエージェントの位置づけ</a></li>
+        <li><a href="ch11-subagents.html#s11-5">活用パターン</a></li>
+        <li><a href="ch11-subagents.html#s11-6">この章の持ち帰り</a></li>
+      </ul>
+    </li>
+    <li>
+      <div class="toc-ch-row">
+        <a class="toc-ch-link" href="ch12-hooks.html"><span class="toc-num">12</span><span>Hooks（フック）</span></a>
+        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-12" aria-label="Hooks（フック）の節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <ul class="toc-sections" id="toc-sec-12" hidden>
+        <li><a href="ch12-hooks.html#s12-1">フックのライフサイクル</a></li>
+        <li><a href="ch12-hooks.html#s12-2">主要イベント一覧</a></li>
+        <li><a href="ch12-hooks.html#s12-3">設定方法と入出力</a></li>
+        <li><a href="ch12-hooks.html#s12-4">典型的なユースケース</a></li>
+        <li><a href="ch12-hooks.html#s12-5">スコープとトラブルシューティング</a></li>
+        <li><a href="ch12-hooks.html#s12-6">この章の持ち帰り</a></li>
+      </ul>
+    </li>
+    <li>
+      <div class="toc-ch-row">
+        <a class="toc-ch-link" href="ch13-mcp.html"><span class="toc-num">13</span><span>MCP（Model Context Protocol）</span></a>
+        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-13" aria-label="MCP（Model Context Protocol）の節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <ul class="toc-sections" id="toc-sec-13" hidden>
+        <li><a href="ch13-mcp.html#s13-1">MCP の位置づけ</a></li>
+        <li><a href="ch13-mcp.html#s13-2">サーバーの追加方法</a></li>
+        <li><a href="ch13-mcp.html#s13-3">インストールスコープ</a></li>
+        <li><a href="ch13-mcp.html#s13-4">コンテキスト効率とガバナンス</a></li>
+        <li><a href="ch13-mcp.html#s13-5">この章の持ち帰り</a></li>
+      </ul>
+    </li>
+    <li>
+      <div class="toc-ch-row">
+        <a class="toc-ch-link" href="ch14-plugins.html"><span class="toc-num">14</span><span>Plugins とマーケットプレイス</span></a>
+        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-14" aria-label="Plugins とマーケットプレイスの節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <ul class="toc-sections" id="toc-sec-14" hidden>
+        <li><a href="ch14-plugins.html#s14-1">スタンドアロン設定との使い分け</a></li>
+        <li><a href="ch14-plugins.html#s14-2">プラグインの構造</a></li>
+        <li><a href="ch14-plugins.html#s14-3">インストールと配布</a></li>
+        <li><a href="ch14-plugins.html#s14-4">この章の持ち帰り</a></li>
+      </ul>
+    </li>
+    <li>
+      <div class="toc-ch-row">
+        <a class="toc-ch-link" href="ch15-settings-and-security.html"><span class="toc-num">15</span><span>設定・権限・セキュリティ</span></a>
+        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-15" aria-label="設定・権限・セキュリティの節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <ul class="toc-sections" id="toc-sec-15" hidden>
+        <li><a href="ch15-settings-and-security.html#s15-1">設定スコープと保存場所</a></li>
+        <li><a href="ch15-settings-and-security.html#s15-2">設定の優先順位</a></li>
+        <li><a href="ch15-settings-and-security.html#s15-3">権限ルールの書き方</a></li>
+        <li><a href="ch15-settings-and-security.html#s15-4">作業ディレクトリ境界とサンドボックス</a></li>
+        <li><a href="ch15-settings-and-security.html#s15-5">プロンプトインジェクション対策</a></li>
+        <li><a href="ch15-settings-and-security.html#s15-6">データの外部送信範囲</a></li>
+        <li><a href="ch15-settings-and-security.html#s15-7">組織展開（エンタープライズ）</a></li>
+        <li><a href="ch15-settings-and-security.html#s15-8">導入リスクと緩和策</a></li>
+        <li><a href="ch15-settings-and-security.html#s15-9">この章の持ち帰り</a></li>
+      </ul>
+    </li>
+    <li>
+      <div class="toc-ch-row">
+        <a class="toc-ch-link" href="ch16-automation-and-sdk.html"><span class="toc-num">16</span><span>自動化・CI/CD・Agent SDK</span></a>
+        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-16" aria-label="自動化・CI/CD・Agent SDKの節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <ul class="toc-sections" id="toc-sec-16" hidden>
+        <li><a href="ch16-automation-and-sdk.html#s16-1">非対話モード</a></li>
+        <li><a href="ch16-automation-and-sdk.html#s16-2">CI/CD と GitHub / GitLab 連携</a></li>
+        <li><a href="ch16-automation-and-sdk.html#s16-3">定期実行とイベント駆動</a></li>
+        <li><a href="ch16-automation-and-sdk.html#s16-4">Claude Agent SDK</a></li>
+        <li><a href="ch16-automation-and-sdk.html#s16-5">この章の持ち帰り</a></li>
+      </ul>
+    </li>
+    <li>
+      <div class="toc-ch-row">
+        <a class="toc-ch-link" href="ch17-learning-roadmap.html"><span class="toc-num">17</span><span>学習ロードマップ</span></a>
+        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-17" aria-label="学習ロードマップの節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <ul class="toc-sections" id="toc-sec-17" hidden>
+        <li><a href="ch17-learning-roadmap.html#s17-1">基礎（1 日目）</a></li>
+        <li><a href="ch17-learning-roadmap.html#s17-2">日常運用（1 週目）</a></li>
+        <li><a href="ch17-learning-roadmap.html#s17-3">拡張（2〜4 週目）</a></li>
+        <li><a href="ch17-learning-roadmap.html#s17-4">チーム展開と自動化（1〜3 か月）</a></li>
+        <li><a href="ch17-learning-roadmap.html#s17-5">この章の持ち帰り</a></li>
+      </ul>
+    </li>
+    <li>
+      <div class="toc-ch-row">
+        <a class="toc-ch-link" href="ch18-sources.html"><span class="toc-num">18</span><span>情報ソース一覧</span></a>
+        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-18" aria-label="情報ソース一覧の節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <ul class="toc-sections" id="toc-sec-18" hidden>
+        <li><a href="ch18-sources.html#s18-1">一次情報源（Anthropic 公式）</a></li>
+        <li><a href="ch18-sources.html#s18-2">準公式・関連標準・学習リソース</a></li>
+        <li><a href="ch18-sources.html#s18-3">コミュニティ資料（非公式・取扱注意）</a></li>
+        <li><a href="ch18-sources.html#s18-4">この章の持ち帰り</a></li>
+      </ul>
+    </li>
+  </ol>
+</nav>
+<!-- NAV:END -->
+
+<main>
+
+<nav class="crumb"><a href="index.html">Claude Code 体系的入門</a><span>/</span>第7章</nav>
+
+<section class="chapter" id="ch7" data-chapter="7">
+  <div class="chapter-head">
+    <span class="chapter-num">07</span>
+    <h1>コストと運用監視</h1>
+  </div>
+  <p class="chapter-lede">
+    トークンは有限で有料です。この章は<strong>仕組み → 測る → 減らす → 異常時</strong>の順に並べています。「速く動かす」ことと「安く動かす」ことは、多くの場合<strong>同じ施策</strong>——コンテキスト管理に帰着します。
+  </p>
+
+  <div class="note">
+    <span class="label">原理との対応</span>
+    <p>この章は図 1-1 の<strong>コンテキストウィンドウ</strong>を「運用と観測性」の側——コスト——から見る章で、根拠は <a href="ch03-core-mechanisms.html#p-context">3-9 コンテキスト</a>（コンテキストは有限で、毎ターン丸ごと送る。先頭一致でキャッシュされる。出力は入力より高い）です。図 7-1 の「固定分＋積み上がる会話」は毎ターン丸ごと送るコンテキストそのもので、プロンプトキャッシュ（7-3）は先頭一致の再利用、言語ごとのトークン量（7-4）と計測（7-5）はコンテキストの長さを測る話、削減（7-6）と診断（7-7）は <a href="ch03-core-mechanisms.html#p-memory">3-9 メモリ</a> の「縮める」「捨てる」をコストの側から見たものです。廃れないのは「短く保つ」「先頭を固定する」「出力（推論を含む）を無駄に増やさない」の 3 つが効くという構造で、変わるのは単価・プランの倍率・キャッシュの寿命・トークナイザの数値です。</p>
+  </div>
+
+  <article class="slide" id="s7-1" data-slide="7-1" data-slide-title="課金の経路とプラン">
+    <h3>7-1. 課金の経路とプラン</h3>
+    <p>Claude Code は<strong>有料プランに含まれます</strong>。無料プランでは使えません。まずどの経路で使うかを決めます。表は<strong>上ほど規模が大きく高額</strong>です。</p>
+
+    <h4>サブスクリプション（claude.ai アカウントでサインイン）</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>プラン</th><th>料金</th><th>使用量</th><th>Claude Code</th><th>向いている使い方</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Enterprise</strong></td><td>セルフサーブは $20 / シート・月＋使用量を API レートで従量。大規模はセールス経由のカスタム価格</td><td>使い方に応じて拡張</td><td>✓</td><td>SSO・監査・管理設定が要る組織展開</td></tr>
+          <tr><td><strong>Team</strong></td><td>標準シート $25 / 人・月（年払い $20）<br>プレミアムシート $125 / 人・月（年払い $100）</td><td>標準より多い（倍率は非公表）</td><td>✓</td><td>チームで共通の設定・プラグインを配る</td></tr>
+          <tr><td><strong>Max 20x</strong></td><td>$200 / 月</td><td>Pro の 20 倍</td><td>✓</td><td>1 日中エージェントを走らせる、並列セッションを常用する</td></tr>
+          <tr><td><strong>Max 5x</strong></td><td>$100 / 月</td><td>Pro の 5 倍（5 時間ごとのウィンドウ単位）</td><td>✓</td><td>Pro で上限に当たるようになったら</td></tr>
+          <tr><td><strong>Pro</strong></td><td>$20 / 月（年払い $200 / 年）</td><td>標準</td><td>✓</td><td>個人の日常的な開発。まずここから</td></tr>
+          <tr><td><strong>Free</strong></td><td>$0</td><td>限定的</td><td><strong>使えない</strong></td><td>Claude チャットを試す</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>使用量は<strong>5 時間ごとのウィンドウ</strong>と週次でリセットされ、Claude チャットとも共有されます。上限を超えても止めたくない場合は<strong>使用量クレジット（usage credits）</strong>を有効にすると、超過分が従量課金で継続されます。</p>
+    <p>プランの料金・倍率・上限は改定されます。どの経路でも変わらないのは、支払っているのが「毎ターン丸ごと送るコンテキストの長さ」と「出力の量」だという点です（<a href="ch03-core-mechanisms.html#p-context">3-9 コンテキスト</a>）。</p>
+
+    <h4>API・クラウドプロバイダ（従量課金）</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>経路</th><th>課金</th><th>向いている使い方</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Claude Console（API キー）</strong></td><td>トークン従量課金（<a href="#s7-2">7-2</a> の単価表）。ワークスペース単位で支出制限</td><td>CI / 自動化、Agent SDK、シート課金が合わない使い方</td></tr>
+          <tr><td><strong>Amazon Bedrock / Google Cloud / Microsoft Foundry</strong></td><td>既存のクラウド契約に従量課金。予算管理はクラウド側</td><td>データを既存のクラウド境界内に収めたい組織</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>プランで変わること — コスト以外</h4>
+    <p>ローカルで動くもの（CLI・サブエージェント・フック・スキル・MCP・ワークフロー・チェックポイント）は<strong>どの経路でも使えます</strong>。差が出るのは claude.ai と連携する機能です。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>機能</th><th>使える経路</th></tr></thead>
+        <tbody>
+          <tr><td>Web 版・モバイル・デスクトップアプリ、Remote Control、Chrome 拡張、ルーティン（<code>/schedule</code>）、音声入力、ultrareview</td><td>サブスクリプションのみ（API キー・クラウドプロバイダでは不可）</td></tr>
+          <tr><td>Artifacts</td><td>Pro / Max / Team / Enterprise</td></tr>
+          <tr><td>コンピュータ操作（computer use）</td><td>Pro / Max</td></tr>
+          <tr><td>Code Review（GitHub の自動レビュー）</td><td>Team / Enterprise</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <span class="label">見積もりの目安</span>
+      <p>公式の注意として、<strong>コーディング用のシートはチャット用より多く予算を見込む</strong>こと。1 回のデバッグセッションがチャット 1 日分以上を消費しうるためです。組織でサインイン方法が混在している場合、<strong>各開発者は自分が認証した方法で計測</strong>されます。プランごとの機能差は変更が入るため、調達前に<a href="https://code.claude.com/docs/ja/feature-availability">機能の可用性</a>で最新を確認してください。</p>
+    </div>
+
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://claude.com/pricing">プランと料金（公式）</a> / <a href="https://support.claude.com/en/articles/11049762-choose-a-claude-plan">プランの選び方（公式ヘルプ）</a></li>
+        <li><a href="https://code.claude.com/docs/ja/feature-availability">機能の可用性</a> / <a href="https://code.claude.com/docs/ja/costs">コストを効果的に管理する</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s7-2" data-slide="7-2" data-slide-title="何がトークンを消費するのか">
+    <h3>7-2. 何がトークンを消費するのか</h3>
+    <p>モデルはリクエスト間で何も記憶しません。<strong>ツールを使うたびに新しいリクエストが飛び、そのつど「開始時に読んだ固定分＋それまでの履歴」を丸ごと運びます</strong>。</p>
+
+    <figure>
+      <svg viewBox="0 0 760 312" role="img" aria-label="セッション全体のトークン消費の図。セッション開始時にシステムプロンプト・CLAUDE.md・スキルの説明文・MCPツール名が固定分として読み込まれ、以降ターンごとに会話が積み上がる。自動コンパクションで会話部分は要約に縮むが、CLAUDE.mdなどは再注入されるため固定分は残る。">
+        <g style="font-family:var(--font-sans)">
+          <text x="8" y="14" font-size="11" style="font-family:var(--font-mono);fill:var(--muted)">1 リクエストで送るトークン量</text>
+          <g stroke="currentColor" stroke-width="1" style="color:var(--line)"><line x1="60" y1="210" x2="700" y2="210"/></g>
+          <g>
+            <rect x="72" y="168" width="56" height="42" style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1.2"/>
+            <rect x="72" y="146" width="56" height="22" style="fill:var(--accent-bg);stroke:var(--accent)" stroke-width="1"/>
+            <text x="100" y="228" text-anchor="middle" font-size="10.5" style="font-family:var(--font-mono);fill:var(--muted)">1</text>
+          </g>
+          <g>
+            <rect x="140" y="168" width="56" height="42" style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1.2"/>
+            <rect x="140" y="122" width="56" height="46" style="fill:var(--accent-bg);stroke:var(--accent)" stroke-width="1"/>
+            <text x="168" y="228" text-anchor="middle" font-size="10.5" style="font-family:var(--font-mono);fill:var(--muted)">2</text>
+          </g>
+          <g>
+            <rect x="208" y="168" width="56" height="42" style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1.2"/>
+            <rect x="208" y="88" width="56" height="80" style="fill:var(--accent-bg);stroke:var(--accent)" stroke-width="1"/>
+            <text x="236" y="228" text-anchor="middle" font-size="10.5" style="font-family:var(--font-mono);fill:var(--muted)">3</text>
+          </g>
+          <g>
+            <rect x="276" y="168" width="56" height="42" style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1.2"/>
+            <rect x="276" y="48" width="56" height="120" style="fill:var(--accent-bg);stroke:var(--accent)" stroke-width="1"/>
+            <text x="304" y="228" text-anchor="middle" font-size="10.5" style="font-family:var(--font-mono);fill:var(--muted)">4</text>
+          </g>
+          <g stroke="currentColor" stroke-width="1.4" stroke-dasharray="5 4" style="color:var(--accent)"><line x1="348" y1="40" x2="348" y2="216"/></g>
+          <text x="356" y="46" font-size="11.5" font-weight="700" style="fill:var(--accent)">コンパクション（compaction）</text>
+          <text x="356" y="62" font-size="10.5" style="fill:var(--muted)">会話が要約に置き換わる</text>
+          <g>
+            <rect x="364" y="168" width="56" height="42" style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1.2"/>
+            <rect x="364" y="138" width="56" height="30" style="fill:var(--surface-2);stroke:var(--accent)" stroke-width="1" stroke-dasharray="3 2"/>
+            <text x="392" y="228" text-anchor="middle" font-size="10.5" style="font-family:var(--font-mono);fill:var(--muted)">5</text>
+          </g>
+          <g>
+            <rect x="432" y="168" width="56" height="42" style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1.2"/>
+            <rect x="432" y="112" width="56" height="56" style="fill:var(--accent-bg);stroke:var(--accent)" stroke-width="1"/>
+            <text x="460" y="228" text-anchor="middle" font-size="10.5" style="font-family:var(--font-mono);fill:var(--muted)">6</text>
+          </g>
+          <g>
+            <rect x="500" y="168" width="56" height="42" style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1.2"/>
+            <rect x="500" y="76" width="56" height="92" style="fill:var(--accent-bg);stroke:var(--accent)" stroke-width="1"/>
+            <text x="528" y="228" text-anchor="middle" font-size="10.5" style="font-family:var(--font-mono);fill:var(--muted)">7</text>
+          </g>
+          <text x="584" y="196" font-size="10.5" style="font-family:var(--font-mono);fill:var(--muted)">…</text>
+          <rect x="600" y="128" width="13" height="13" rx="2" style="fill:var(--accent-bg);stroke:var(--accent)" stroke-width="1"/>
+          <text x="620" y="139" font-size="11" style="fill:var(--muted)">会話（積み上がる）</text>
+          <rect x="600" y="150" width="13" height="13" rx="2" style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1.2"/>
+          <text x="620" y="161" font-size="11" style="fill:var(--muted)">開始時の固定分</text>
+          <g>
+            <rect x="8" y="244" width="360" height="60" rx="6" style="fill:var(--surface-2);stroke:var(--ink)" stroke-width="1.2"/>
+            <text x="20" y="261" font-size="10.5" font-weight="700" style="fill:var(--text)">固定分（毎リクエスト送られる）</text>
+            <text x="20" y="278" font-size="10.5" style="fill:var(--muted)">システムプロンプト＋ツール定義／CLAUDE.md・rules</text>
+            <text x="20" y="294" font-size="10.5" style="fill:var(--muted)">スキルの説明文／MCP ツール名</text>
+          </g>
+          <g>
+            <rect x="380" y="244" width="372" height="60" rx="6" style="fill:var(--accent-bg);stroke:var(--accent)" stroke-width="1.2"/>
+            <text x="392" y="261" font-size="10.5" font-weight="700" style="fill:var(--accent)">コンパクション後に読み直されるもの</text>
+            <text x="392" y="278" font-size="10.5" style="fill:var(--muted)">CLAUDE.md・自動メモリ・プランは再注入</text>
+            <text x="392" y="294" font-size="10.5" style="fill:var(--muted)">直近 5 ファイルを再読／スキル本文も再注入</text>
+          </g>
+        </g>
+      </svg>
+      <figcaption>図 7-1：総消費を決めるのは、①開始時に読む固定分の大きさ　②往復の回数　③コンパクションの回数。</figcaption>
+    </figure>
+
+    <h4>積算の内訳</h4>
+    <p>何がいつ読み込まれるかは <a href="ch03-core-mechanisms.html#s3-6">3-6</a>。ここでは<strong>コストの効かせ方</strong>だけを見ます。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>要素</th><th>いつ乗るか</th><th>効かせ方</th></tr></thead>
+        <tbody>
+          <tr><td>システムプロンプト＋組み込みツール（built-in tools）の定義</td><td>固定分</td><td>通常はキャッシュ読み。削るとキャッシュも切れる</td></tr>
+          <tr><td>CLAUDE.md・自動メモリ（auto memory）・スコープ無しの rules</td><td>固定分</td><td>短く保つ。資料はスキルへ（<a href="#s7-4">7-4</a>）</td></tr>
+          <tr><td>スキルの説明文・MCP のツール名</td><td>固定分</td><td>説明文は 1 行に。使わない MCP サーバーは切る</td></tr>
+          <tr><td>読み込んだファイル／ツール実行結果</td><td>読んだ以降ずっと</td><td>調査はサブエージェント（subagent）へ。フックで前処理して絞る</td></tr>
+          <tr><td>拡張思考（extended thinking）の思考トークン</td><td>有効なターン</td><td><strong>出力トークンとして課金</strong>。努力レベル（effort level）を作業に合わせる</td></tr>
+          <tr><td>コンパクション（compaction）</td><td><code>/compact</code>・自動圧縮のたび</td><td>要約の<strong>生成</strong>が出力コスト。入力側は既存キャッシュを読むので再処理はされない。タスクの切れ目に自分で実行する</td></tr>
+          <tr><td><strong>やり直し・手戻り</strong></td><td>方向を間違えたとき</td><td><strong>最大の変動費</strong>。プランモード（plan mode）と早期の軌道修正</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="label">コンパクションは「リセット」ではない</span>
+      <p>会話は要約に縮みますが<strong>固定分は残ります</strong>。CLAUDE.md と自動メモリはディスクから再注入され、呼び出し済みのスキル本文も予算内（1 スキル 5,000・合計 25,000 トークン）で再添付されます。<strong>ゼロから始めたいなら <code>/clear</code></strong> です。</p>
+    </div>
+
+    <h4>単価の構造 — キャッシュ読みは入力の 1/10</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>モデル</th><th>入力</th><th>キャッシュ書き込み（5分）</th><th>キャッシュ読み出し</th><th>出力</th></tr></thead>
+        <tbody>
+          <tr><td>Claude Opus 5</td><td>$5</td><td>$6.25</td><td><strong>$0.50</strong></td><td>$25</td></tr>
+          <tr><td>Claude Sonnet 5</td><td>$2</td><td>$2.50</td><td><strong>$0.20</strong></td><td>$10</td></tr>
+          <tr><td>Claude Haiku 4.5</td><td>$1</td><td>$1.25</td><td><strong>$0.10</strong></td><td>$5</td></tr>
+          <tr><td>高速モード（Opus 5 / 4.8）</td><td>$10</td><td>—</td><td>—</td><td>$50</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>100 万トークンあたり・2026 年 8 月時点。<strong>キャッシュ読みは入力の 1 割</strong>、<strong>出力は入力の 5 倍</strong>。つまり効くのは「キャッシュに乗せること」と「出力（思考を含む）を無駄に増やさないこと」です。</p>
+    <p>単価もモデル名も変わりますが、「出力は入力より高い」「キャッシュに乗った入力は乗らない入力より安い」という構造は変わりません（<a href="ch03-core-mechanisms.html#p-context">3-9 コンテキスト</a>）。数値を覚えるより、この 2 つの不等号を覚えてください。</p>
+
+    <h4>会話の外でも消費される</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>対象</th><th>影響</th></tr></thead>
+        <tbody>
+          <tr><td>背景処理（会話要約、<code>/usage</code> 等）</td><td>小さい。公式の目安は<strong>セッションあたり $0.04 未満</strong></td></tr>
+          <tr><td>サブエージェント（subagent）</td><td>自前のコンテキストとキャッシュを持つ。大量のファイル読みが親に載らないため<strong>合計では安くなることが多い</strong></td></tr>
+          <tr><td>エージェントチーム（agent teams）</td><td>各メンバーが独立した Claude インスタンス。<strong>消費はメンバー数にほぼ比例</strong>し、終了するまで消費し続ける。ルーティン作業なら単一セッションのほうが安い</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/costs">コストを効果的に管理する</a> / <a href="https://platform.claude.com/docs/ja/about-claude/pricing">料金（公式）</a></li>
+        <li><a href="https://code.claude.com/docs/ja/context-window">コンテキストウィンドウ — コンパクションで何が残るか</a> / <a href="https://code.claude.com/docs/ja/agent-teams">エージェントチーム</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s7-3" data-slide="7-3" data-slide-title="プロンプトキャッシュ">
+    <h3>7-3. プロンプトキャッシュ（prompt caching）</h3>
+    <p>キャッシュを壊す操作をタスクの途中で行うと、<strong>そのターンだけ約 10 倍の入力コスト</strong>を払います。総消費を左右する最大の変数です。</p>
+
+    <h4>3 層のプレフィックス一致</h4>
+    <p>API はリクエストの先頭（プレフィックス）を直前の処理内容と照合します。<strong>前方に 1 箇所でも変化があると、それ以降は全て再計算</strong>されます。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>層</th><th>内容</th><th>変わるとき</th></tr></thead>
+        <tbody>
+          <tr><td><strong>システムプロンプト</strong></td><td>中核の指示、ツール定義、出力スタイル（output style）</td><td>ロードされるツール定義が変わる、Claude Code がアップグレードされる</td></tr>
+          <tr><td><strong>プロジェクトコンテキスト</strong></td><td>CLAUDE.md、自動メモリ、スコープ無しの rules</td><td>セッション開始、<code>/clear</code>、<code>/compact</code> の後</td></tr>
+          <tr><td><strong>会話</strong></td><td>発言、応答、ツール結果</td><td>毎ターン</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>加えて、プロンプト本文ではないのにキャッシュキーに含まれるものが 2 つ——<strong>モデル</strong>と<strong>努力レベル（effort level）</strong>です。</p>
+
+    <h4>キャッシュを壊す操作／保つ操作</h4>
+    <div class="cards">
+      <div class="card">
+        <span class="tag">壊す</span>
+        <h5>タスクの途中では避ける</h5>
+        <p>モデル切替（<code>/model</code>）／努力レベル変更（<code>/effort</code>）／<strong>高速モードの有効化（<code>/fast</code>）</strong>／ツール全体の deny 追加／<code>/compact</code>／Claude Code のアップグレード</p>
+        <p><strong>MCP サーバーの接続・切断とプラグインの切替は壊しません。</strong>ツール検索で定義が遅延ロードされる既定構成では、新しい内容が末尾に足されるだけだからです（プリフィックスに定義を載せる構成では壊します）。</p>
+      </div>
+      <div class="card">
+        <span class="tag">保つ</span>
+        <h5>いつ行ってもよい</h5>
+        <p>リポジトリのファイル編集／CLAUDE.md の編集／出力スタイルの変更／権限モード（permission mode）の変更／スキル・コマンドの呼び出し／<code>/recap</code>／<code>/rewind</code>／サブエージェントの起動</p>
+      </div>
+    </div>
+    <div class="note">
+      <span class="label">「保つ」側の副作用</span>
+      <p>キャッシュを保つことは、<strong>その変更がセッション中は適用されない</strong>ことと表裏です。プロジェクトルートの CLAUDE.md と出力スタイルはセッション開始時に一度だけ読まれるため、途中で編集しても<strong>効きません</strong>（反映は次の <code>/clear</code> か再起動から）。<strong>「CLAUDE.md を直したのに従わない」の正体はこれです</strong>（<a href="ch04-memory-and-instructions.html#s4-6">4-6</a>）。ネストした CLAUDE.md と <code>paths:</code> 付き rules は後から読まれるため、ロード前の編集は反映されます。</p>
+    </div>
+    <div class="note">
+      <span class="label">高速モードは会話の途中でオンにすると高い</span>
+      <p>会話中に初めて有効化すると、<strong>その時点のコンテキスト全体を高速モードの未キャッシュ単価で払い直します</strong>。深いところで入れるほど高くつくため、<strong>使うならセッションの最初から</strong>。この課金は 1 会話につき 1 回で、後からオフ・オンを繰り返しても再発しません。</p>
+    </div>
+
+    <h4>キャッシュの寿命（TTL）</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>リクエストの種別</th><th>サブスクリプション（プラン内）</th><th>使用量クレジット／API キー／クラウドプロバイダ</th></tr></thead>
+        <tbody>
+          <tr><td><strong>メイン会話</strong>（対話ターン、<code>-p</code>、Agent SDK）</td><td>1 時間</td><td>5 分</td></tr>
+          <tr><td><strong>それ以外</strong>（サブエージェント、ワークフロー、コンパクション等）</td><td>5 分（一部のヘルパーは 1 時間）</td><td>5 分</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul>
+      <li><strong>プラン上限を超えて使用量クレジットに入ると、メイン会話も 5 分に落ちます</strong>。「上限を超えた後に急に高くつく」と感じる一因がこれです</li>
+      <li>どちらの場合も <code>promptCacheTtl</code> 設定または <code>CLAUDE_CODE_PROMPT_CACHE_TTL</code> 環境変数に <code>1h</code> を指定すれば 1 時間を維持できます（v2.1.242 以降）。サブエージェント側は <code>subagentPromptCacheTtl</code></li>
+      <li>キャッシュは実質的に<strong>マシンとディレクトリ単位</strong>。<strong>別ディレクトリのセッションは互いのキャッシュを読みません</strong>（worktree も別扱い）。同じディレクトリの並行セッション同士は共有します</li>
+    </ul>
+
+    <h4>運用の原則</h4>
+    <ol>
+      <li><strong>モデル・努力レベル・高速モードはセッション冒頭で決める</strong>。途中で変えない</li>
+      <li><code>/compact</code> は<strong>タスクの切れ目</strong>で自分から実行する。自動圧縮がタスクの最中に走るより安い</li>
+      <li>継続が不要なら <code>/compact</code> ではなく <code>/clear</code>。<strong><code>/clear</code> は要約を生成しないぶん実質コスト 0</strong></li>
+      <li>長い中断の後に古いセッションを <code>--resume</code> すると、キャッシュが切れているため最初の 1 ターンが最も高くつく</li>
+    </ol>
+
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/prompt-caching">Claude Code はプロンプトキャッシュをどう使うか</a> / <a href="https://code.claude.com/docs/ja/fast-mode">高速モード</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s7-4" data-slide="7-4" data-slide-title="言語ごとのトークン量">
+    <h3>7-4. 言語ごとのトークン量</h3>
+    <p>同じ内容でも、書く言語によってトークン数は変わります。まず基準値を押さえます。</p>
+
+    <h4>1 トークンあたりの文字数</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>対象</th><th>1 トークン ≒</th><th>出典</th></tr></thead>
+        <tbody>
+          <tr><td>英語の散文（公式の目安）</td><td><strong>3.5 文字</strong></td><td>Anthropic 用語集<sup>1</sup></td></tr>
+          <tr><td>英語の散文（Claude 4.7 実測）</td><td><strong>3.60 文字</strong></td><td>実測<sup>2</sup></td></tr>
+          <tr><td>TypeScript コード（Claude 4.7 実測）</td><td><strong>2.69 文字</strong></td><td>実測<sup>2</sup></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><strong>コードは散文より約 3 割トークン効率が悪い</strong>——記号・インデント・改行がそれぞれトークンを消費するためです。</p>
+    <p>表の「実測」は第三者による非公式の計測で、本資料の区分（<a href="ch00-about.html#s0-2">0-2</a>）では類推に当たります。手元で測った値は <a href="#s7-5">7-5</a> にあります。</p>
+    <div class="note">
+      <span class="label">トークナイザは更新される</span>
+      <p>Claude 4.6 では英語 4.33 文字／TypeScript 3.66 文字でした。4.7 以降は<strong>新しいトークナイザ</strong>が使われ、公式は「性能向上に寄与するもので、<strong>同じテキストで約 30% 多くのトークンを生成する</strong>」としています<sup>5</sup>。非公式の実測では散文で約 1.2 倍、コードで約 1.4 倍でした<sup>2</sup>。<strong>数値は目安として扱い、モデルを変えたら測り直してください。</strong></p>
+    </div>
+
+    <h4>同じ意味の文を書いたときの言語別トークン量</h4>
+    <figure>
+      <svg viewBox="0 0 760 210" role="img" aria-label="言語別トークン量の棒グラフ。英語1.00に対し、中国語1.76倍、広東語2.10倍、日本語2.12倍、韓国語2.36倍。">
+        <g style="font-family:var(--font-sans)">
+          <g>
+            <rect x="150" y="16" width="106" height="26" rx="3" style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1.2"/>
+            <text x="140" y="34" text-anchor="end" font-size="13" style="fill:var(--text)">英語</text>
+            <text x="266" y="34" font-size="12.5" style="font-family:var(--font-mono);fill:var(--muted)">1.00</text>
+          </g>
+          <g>
+            <rect x="150" y="52" width="187" height="26" rx="3" style="fill:var(--accent-bg);stroke:var(--accent)" stroke-width="1.2"/>
+            <text x="140" y="70" text-anchor="end" font-size="13" style="fill:var(--text)">中国語（普通話）</text>
+            <text x="347" y="70" font-size="12.5" style="font-family:var(--font-mono);fill:var(--accent)">1.76</text>
+          </g>
+          <g>
+            <rect x="150" y="88" width="223" height="26" rx="3" style="fill:var(--accent-bg);stroke:var(--accent)" stroke-width="1.2"/>
+            <text x="140" y="106" text-anchor="end" font-size="13" style="fill:var(--text)">広東語</text>
+            <text x="383" y="106" font-size="12.5" style="font-family:var(--font-mono);fill:var(--accent)">2.10</text>
+          </g>
+          <g>
+            <rect x="150" y="124" width="225" height="26" rx="3" style="fill:var(--accent-soft);stroke:var(--accent)" stroke-width="1.8"/>
+            <text x="140" y="142" text-anchor="end" font-size="13" font-weight="700" style="fill:var(--accent)">日本語</text>
+            <text x="385" y="142" font-size="12.5" font-weight="700" style="font-family:var(--font-mono);fill:var(--accent)">2.12</text>
+          </g>
+          <g>
+            <rect x="150" y="160" width="250" height="26" rx="3" style="fill:var(--accent-bg);stroke:var(--accent)" stroke-width="1.2"/>
+            <text x="140" y="178" text-anchor="end" font-size="13" style="fill:var(--text)">韓国語</text>
+            <text x="410" y="178" font-size="12.5" style="font-family:var(--font-mono);fill:var(--accent)">2.36</text>
+          </g>
+        </g>
+      </svg>
+      <figcaption>図 7-2：英語を 1.00 としたトークン量の比。Tatoeba の対訳 200 万文超を <code>cl100k_base</code> で計測<sup>3</sup>。Claude での比としては類推。</figcaption>
+    </figure>
+    <div class="note">
+      <span class="label">この図は参考値。固定の定数として扱わない</span>
+      <p><code>cl100k_base</code> は <strong>OpenAI のトークナイザで、Claude のものではありません</strong>（Claude のものは非公開で、言語間比較の公開データがない）。比はモデル更新でも動き、4.6 → 4.7 では英語だけ密度が下がったため<strong>新しいモデルほど日本語との差は縮みます</strong><sup>2</sup>。実際の値は <a href="#s7-5">7-5</a> の手順で計測してください。</p>
+    </div>
+
+    <h4>「日本語だから安い／高い」より、どこに書くかが効く</h4>
+    <p>問題は量ではなく<strong>頻度</strong>です。会話は毎リクエストで全履歴が再送されるため、常時読み込まれる資産だけが固定費として毎ターン乗り続けます。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>資産</th><th>読み込まれる頻度</th><th>言語の効き方</th></tr></thead>
+        <tbody>
+          <tr><td><strong>CLAUDE.md</strong>・スコープ無しの rules</td><td>毎リクエスト</td><td><strong>最も効く</strong>。簡潔に。長い資料はスキルへ</td></tr>
+          <tr><td><strong>スキルの description</strong></td><td>毎リクエスト（全スキル分）</td><td>1 行に収める</td></tr>
+          <tr><td><strong>MCP のサーバー説明</strong></td><td>毎リクエスト</td><td>使わないサーバーを切る</td></tr>
+          <tr><td><strong>スキル本文・参照資料</strong></td><td>呼び出したときだけ</td><td>影響は小さい。日本語で書いてよい</td></tr>
+          <tr><td><strong>読み込んだソースコード</strong></td><td>読んだ以降ずっと</td><td>言語より「読ませすぎない」ことが効く</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>結論は<strong>「指示は短く、資料はオンデマンドに」</strong>。日本語で書くこと自体を避ける必要はありません。避けるべきは、常時ロードされる場所に長文を置くことです。</p>
+
+    <div class="note">
+      <span class="label">母語で書けば安く済む、とは限らない</span>
+      <p>中国語と英語のプロンプトを比較した研究では、3 モデル中 2 モデルで<strong>中国語のほうがトークンを多く使い</strong>、3 モデルすべてで<strong>解決率が下がりました</strong>（例：66.0% → 61.5%）<sup>4</sup>。Claude と日本語は対象外なので断定はできませんが、<strong>「非英語で書けばトークンが減る」という期待は成立しない</strong>と考えたほうが安全です（類推）。</p>
+    </div>
+
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li>1. <a href="https://platform.claude.com/docs/en/about-claude/glossary">Anthropic 用語集 — Tokens</a>（公式）</li>
+        <li>2. <a href="https://www.claudecodecamp.com/p/i-measured-claude-4-7-s-new-tokenizer-here-s-what-it-costs-you">I Measured Claude 4.7's New Tokenizer</a>（非公式・<code>count_tokens</code> API による実測）</li>
+        <li>3. <a href="https://tonybaloney.github.io/posts/cjk-chinese-japanese-korean-llm-ai-best-practices.html">Anthony Shaw, CJK text in Generative AI pipelines</a>（非公式・<code>cl100k_base</code> での計測）</li>
+        <li>4. <a href="https://arxiv.org/abs/2604.14210">Chinese Language Is Not More Efficient Than English in Vibe Coding</a>（arXiv・Claude と日本語は対象外）</li>
+        <li>5. <a href="https://platform.claude.com/docs/en/about-claude/pricing">Model pricing — トークナイザに関する注記</a>（公式）</li>
+        <li><a href="https://platform.claude.com/docs/en/api/messages-count-tokens">Messages count tokens API</a>（公式）</li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s7-5" data-slide="7-5" data-slide-title="使用量の計測">
+    <h3>7-5. 使用量の計測</h3>
+
+    <h4><code>/usage</code> — 3 つのブロックを読み分ける</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>ブロック</th><th>読み取れること</th><th>備考</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Session</strong></td><td>現セッションのモデル別トークン数（入力／出力／キャッシュ読み／キャッシュ書き）と概算コスト</td><td><code>/clear</code> でリセット。金額はローカルで定価から計算した概算</td></tr>
+          <tr><td><strong>Prompt cache (main)</strong></td><td>リクエスト数、<strong>入力トークンのうちキャッシュから読まれた割合</strong>、ミス回数、warm / cold と TTL</td><td>メイン会話のみ。サブエージェントは含まない（<a href="#s7-3">7-3</a>）</td></tr>
+          <tr><td><strong>プラン使用量の内訳</strong></td><td><strong>何が消費しているかの帰属</strong>（スキル・サブエージェント・プラグイン・MCP サーバー別）、<strong>挙動フラグ</strong>（長いコンテキストやキャッシュミスが 10% 以上のとき警告）、重い <code>/loop</code> の一覧</td><td>Pro / Max / Team / Enterprise のみ。<code>d</code> / <code>w</code> で 24 時間・7 日間を切替</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>使い分け</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>知りたいこと</th><th>手段</th></tr></thead>
+        <tbody>
+          <tr><td>自分がどの経路・プランで課金されているか</td><td><code>/status</code></td></tr>
+          <tr><td>今のセッションで何にいくら使ったか</td><td><code>/usage</code></td></tr>
+          <tr><td>コンテキストの内訳（CLAUDE.md・スキル・MCP が各何トークンか）</td><td><code>/context</code></td></tr>
+          <tr><td>コンテキスト残量・キャッシュの温度を<strong>常時</strong>見たい</td><td>ステータスライン（<a href="ch06-progress-and-visibility.html#s6-6">6-6</a>）</td></tr>
+          <tr><td>使用量ではなく<strong>働き方</strong>の傾向・摩擦点</td><td><code>/insights</code>（<code>~/.claude/usage-data/report.html</code> に出力）</td></tr>
+          <tr><td>組織のメンバー別・リアルタイムの消費</td><td><strong>OpenTelemetry</strong>（下記）</td></tr>
+          <tr><td>組織の採用状況・生産性の推移</td><td><strong>分析ダッシュボード</strong>（analytics dashboard・Team / Enterprise）</td></tr>
+          <tr><td>使用量クレジットの残高・月間支出上限を管理したい</td><td><code>/usage-credits</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <span class="label">組織で見るなら OpenTelemetry</span>
+      <p>ユーザー単位・セッション単位の数値を<strong>全構成で取れる唯一の方法</strong>です（Bedrock・Google Cloud・Microsoft Foundry のように Console ダッシュボードが使えない経路を含む）。トークン数、キャッシュ読み／書き、コスト、セッション数などをメトリクスとイベントとしてエクスポートできます。</p>
+      <p>契約単価がある組織は、管理設定（managed settings）の <code>modelPricing</code> に単価を設定すると、<strong><code>/usage</code> やステータスラインの金額が定価ではなく実際の請求額に一致します</strong>（v2.1.242 以降）。</p>
+    </div>
+
+    <div class="try">
+      <span class="label">試してみる：まず見る 3 つ</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="/status">/status     # ログイン方法とアカウント種別（どの経路で課金されるか）</span><span class="cmd" data-copy="/usage">/usage      # セッション・キャッシュ・プラン内訳（d / w で期間切替）</span><span class="cmd" data-copy="/context">/context    # コンテキストの内訳</span><span class="cmd" data-copy="/insights">/insights   # 働き方のレポートを HTML で出力</span></code></pre></div>
+    </div>
+
+    <h4>実際に測ってみる — 言語による差を確かめる</h4>
+    <p>小さな作業を英語と日本語でやらせ、<strong>入力・思考・出力</strong>のトークンをそれぞれ測ります。API キーは不要です。</p>
+
+    <div class="note">
+      <span class="label">先に環境を揃える — ここを外すと比較にならない</span>
+      <p>そのまま計測すると、<strong>自分の設定が結果を汚染します</strong>。CLAUDE.md に「出力は日本語で」と書いてあれば英語版でも日本語が返り、大量のコンテキストを積んでいれば固定分が膨らんで差が埋もれます。</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>方法</th><th>無効になるもの</th><th>使いどころ</th></tr></thead>
+          <tbody>
+            <tr><td><code>--safe-mode</code></td><td>CLAUDE.md・自動メモリ・スキル・プラグイン・フック・MCP・カスタムコマンド・出力スタイル・LSP など<strong>ほぼ全部</strong></td><td><strong>計測はこれ</strong>。素の状態を基準にできる</td></tr>
+            <tr><td><code>CLAUDE_CODE_DISABLE_CLAUDE_MDS=1</code></td><td>CLAUDE.md（ユーザー・プロジェクト）と自動メモリのみ</td><td>スキルや MCP は載せたまま比べたいとき</td></tr>
+            <tr><td><code>--bare</code></td><td>safe-mode 相当＋ツールも最小限</td><td>認証が <code>ANTHROPIC_API_KEY</code> 限定になるためサブスクリプションでは使えない</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>どちらも<strong>計測のときだけ</strong>使ってください。通常の作業で付けると、指示もスキルも効かなくなります。</p>
+    </div>
+
+    <div class="try">
+      <span class="label">手順 1：作業内容を英語版と日本語版で用意する</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="mkdir -p /tmp/tok &amp;&amp; cd /tmp/tok">mkdir -p /tmp/tok &amp;&amp; cd /tmp/tok</span><span class="cmd" data-copy="cat &gt; task_en.txt &lt;&lt;'EOF'
+Answer in English. Do not use any tools.
+
+def last_n(items, n):
+    return items[len(items) - n - 1:]
+
+This should return the last n elements, but it returns n+1 elements.
+Explain the bug in two or three sentences and show the corrected function.
+EOF">cat &gt; task_en.txt &lt;&lt;'EOF'
+Answer in English. Do not use any tools.
+
+def last_n(items, n):
+    return items[len(items) - n - 1:]
+
+This should return the last n elements, but it returns n+1 elements.
+Explain the bug in two or three sentences and show the corrected function.
+EOF</span><span class="cmd" data-copy="cat &gt; task_ja.txt &lt;&lt;'EOF'
+日本語で答えてください。ツールは使わないでください。
+
+def last_n(items, n):
+    return items[len(items) - n - 1:]
+
+これは末尾 n 件を返すはずですが、n+1 件返します。
+バグの原因を 2〜3 文で説明し、修正版の関数を示してください。
+EOF">cat &gt; task_ja.txt &lt;&lt;'EOF'
+日本語で答えてください。ツールは使わないでください。
+
+def last_n(items, n):
+    return items[len(items) - n - 1:]
+
+これは末尾 n 件を返すはずですが、n+1 件返します。
+バグの原因を 2〜3 文で説明し、修正版の関数を示してください。
+EOF</span></code></pre></div>
+      <p>オフバイワンのバグを直させる小さな作業です。<strong>考えて、説明して、コードを書く</strong>——実際の使い方に近く、かつ数百トークンで終わります。出力言語はプロンプト側で明示しているので、設定に左右されません。</p>
+    </div>
+
+    <div class="try">
+      <span class="label">手順 2：基準と 2 パターンを計測する</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="measure() {
+  DISABLE_PROMPT_CACHING=1 claude -p --safe-mode --model haiku --output-format json --max-turns 1 \
+  | python3 -c &#x27;import json,sys; u=json.load(sys.stdin)[&quot;usage&quot;]; print(&quot;in&quot;,u[&quot;input_tokens&quot;],&quot;out&quot;,u[&quot;output_tokens&quot;],&quot;think&quot;,u[&quot;output_tokens_details&quot;][&quot;thinking_tokens&quot;])&#x27;
+}
+
+printf &#x27;base: &#x27;; echo ok | measure
+printf &#x27;en:   &#x27;; measure &lt; task_en.txt
+printf &#x27;ja:   &#x27;; measure &lt; task_ja.txt">measure() {
+  DISABLE_PROMPT_CACHING=1 claude -p --safe-mode --model haiku --output-format json --max-turns 1 \
+  | python3 -c 'import json,sys; u=json.load(sys.stdin)["usage"]; print("in",u["input_tokens"],"out",u["output_tokens"],"think",u["output_tokens_details"]["thinking_tokens"])'
+}
+
+printf 'base: '; echo ok | measure
+printf 'en:   '; measure &lt; task_en.txt
+printf 'ja:   '; measure &lt; task_ja.txt</span></code></pre></div>
+      <p>フラグを変数にまとめて <code>$M</code> のように渡すと、<strong>zsh では単語分割されず 1 個の引数として扱われて失敗します</strong>。上のように関数にするのが確実です。</p>
+      <p>出力例（Haiku 4.5・<strong>答え合わせ用の一例</strong>・実測）：</p>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="base: in 16101 out 128 think 108
+en:   in 16170 out 588 think 425
+ja:   in 16200 out 680 think 469">base: in 16101 out 128 think 108
+en:   in 16170 out 588 think 425
+ja:   in 16200 out 680 think 469</span></code></pre></div>
+    </div>
+
+    <div class="try">
+      <span class="label">手順 3：差を取る</span>
+      <p><code>base</code> はシステムプロンプトなどの固定分です。入力はこれを引くと、プロンプト本体のトークン数が出ます。</p>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="                  英語   日本語     比
+入力（プロンプト）    69     99    1.43 倍   ← 16170-16101 / 16200-16101
+思考                425    469    1.10 倍
+回答本文            163    211    1.29 倍   ← 出力合計 - 思考
+出力の合計          588    680    1.16 倍">                  英語   日本語     比
+入力（プロンプト）    69     99    1.43 倍   ← 16170-16101 / 16200-16101
+思考                425    469    1.10 倍
+回答本文            163    211    1.29 倍   ← 出力合計 - 思考
+出力の合計          588    680    1.16 倍</span></code></pre></div>
+      <p>この例で最も大きいのは<strong>思考トークン</strong>で、出力全体の約 7 割を占めています。<strong>プロンプト本体の差（1.43 倍）がそのまま総額に効くわけではない</strong>——というのが、テキストを読ませるだけの計測では見えない点です。</p>
+    </div>
+
+    <div class="note">
+      <span class="label">この数値の位置づけ</span>
+      <p>上は<strong>1 つの小さな作業を 1 回測っただけの例</strong>で、言語間の比を一般化できる規模の検証ではありません。手順が正しく動いているかの<strong>答え合わせ</strong>として使ってください。判断に使う数値は、自分がよく出すプロンプトで測り直します。</p>
+      <p>また<strong>入力トークンは毎回同じ値になりますが、思考と出力は同じプロンプトでもばらつきます</strong>（別の実行では英語 <code>out 474 / think 348</code>、日本語 <code>out 598 / think 429</code> でした）。出力側を見るときは 3 回ほど走らせて均してください。</p>
+      <p><strong>思考トークンが 0 になるモデル・設定もあります。</strong>上の例は Haiku 4.5 のもので、別のモデルでは <code>think 0</code> になり、言語差も別の出方をしました。使うモデルを揃えて比べてください。</p>
+    </div>
+
+    <div class="note">
+      <span class="label">計測時の注意</span>
+      <ul>
+        <li><code>DISABLE_PROMPT_CACHING=1</code> が要点です。付けないと入力の大半が <code>cache_creation_input_tokens</code> に回り、<code>input_tokens</code> が実態を映しません</li>
+        <li>そのぶん<strong>毎回全文が未キャッシュで処理されます</strong>。1 回あたり 1〜4 万トークンかかるので、確認したいときだけ実行してください</li>
+        <li>比べたいモデルを <code>--model sonnet</code> のように明示します。<strong>モデルが違えば結果も変わります</strong>。ただし系列の違うモデル同士を比べても、差がトークナイザ由来かは切り分けられません</li>
+        <li>同じディレクトリで連続して実行してください。作業ディレクトリはシステムプロンプトに埋め込まれるため、<strong>ディレクトリが違うと <code>base</code> も変わります</strong></li>
+        <li>新しいディレクトリでの初回実行は、フォルダを信頼するか尋ねられて空の結果になることがあります。その場合は同じコマンドをもう一度実行してください</li>
+      </ul>
+    </div>
+
+    <div class="try">
+      <span class="label">おまけ：自分の CLAUDE.md がいくら掛かっているか</span>
+      <p>同じプロンプトを、設定ありとなしで測って引き算します。<strong>毎リクエスト乗る固定費</strong>がそのまま出ます。</p>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="usage() { python3 -c 'import json,sys; print(&quot;in&quot;, json.load(sys.stdin)[&quot;usage&quot;][&quot;input_tokens&quot;])'; }
+
+printf '通常          : '; echo ok | DISABLE_PROMPT_CACHING=1 claude -p --output-format json --max-turns 1 | usage
+printf 'CLAUDE.md なし: '; echo ok | CLAUDE_CODE_DISABLE_CLAUDE_MDS=1 DISABLE_PROMPT_CACHING=1 claude -p --output-format json --max-turns 1 | usage
+printf 'safe-mode     : '; echo ok | DISABLE_PROMPT_CACHING=1 claude -p --safe-mode --output-format json --max-turns 1 | usage">usage() { python3 -c 'import json,sys; print("in", json.load(sys.stdin)["usage"]["input_tokens"])'; }
+
+printf '通常          : '; echo ok | DISABLE_PROMPT_CACHING=1 claude -p --output-format json --max-turns 1 | usage
+printf 'CLAUDE.md なし: '; echo ok | CLAUDE_CODE_DISABLE_CLAUDE_MDS=1 DISABLE_PROMPT_CACHING=1 claude -p --output-format json --max-turns 1 | usage
+printf 'safe-mode     : '; echo ok | DISABLE_PROMPT_CACHING=1 claude -p --safe-mode --output-format json --max-turns 1 | usage</span></code></pre></div>
+      <p>出力例（<strong>ある環境での一例</strong>・実測。数値は人によって大きく違います）：</p>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="通常          : in 40488
+CLAUDE.md なし: in 23420   ← CLAUDE.md・rules・自動メモリで 17,068
+safe-mode     : in 16134   ← さらにスキル・MCP などで 7,286">通常          : in 40488
+CLAUDE.md なし: in 23420   ← CLAUDE.md・rules・自動メモリで 17,068
+safe-mode     : in 16134   ← さらにスキル・MCP などで 7,286</span></code></pre></div>
+      <p>この例では <strong>CLAUDE.md 系だけで 17,000 トークン超</strong>が毎リクエストに乗っていました。ここが大きいなら、言語を英語に寄せるより<strong>まず量を削るほうが効きます</strong>。内訳は <code>/context</code> で分類別に確認できます。</p>
+    </div>
+
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/costs">コストを効果的に管理する</a> / <a href="https://code.claude.com/docs/ja/monitoring-usage">モニタリング（OpenTelemetry）</a> / <a href="https://code.claude.com/docs/ja/analytics">分析ダッシュボード</a></li>
+        <li><a href="https://platform.claude.com/docs/en/api/messages-count-tokens">Messages count tokens API</a>（公式）</li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s7-6" data-slide="7-6" data-slide-title="使用量の削減">
+    <h3>7-6. 使用量の削減</h3>
+    <p>効果の大きい順に 5 系統。上 2 つが金額への効き目が大きく、下にいくほど地道な削減です。</p>
+
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>効き目</th><th>系統</th><th>具体策</th></tr></thead>
+        <tbody>
+          <tr><td>★★★</td><td><strong>手戻りを減らす</strong><br>最大の変動費</td><td>指示の精度・プランモード・早期の軌道修正・検証手段の付与が効く。具体的な型は <a href="ch05-best-practices.html#s5-1">5-1</a> と <a href="ch05-best-practices.html#s5-5">5-5</a> に集約</td></tr>
+          <tr><td>★★★</td><td><strong>キャッシュを壊さない</strong></td><td>モデル・努力レベル・高速モードは<strong>セッション冒頭で固定</strong>する／<code>/compact</code> はタスクの切れ目に自分から実行（→ <a href="#s7-3">7-3</a>）</td></tr>
+          <tr><td>★★</td><td><strong>コンテキストを小さく保つ</strong></td><td>タスクの切れ目で <code>/clear</code>（後で戻るなら先に <code>/rename</code>）／<code>/compact</code> に焦点を指定（CLAUDE.md の <code># Compact instructions</code> で既定化できる）／<code>/autocompact 500k</code> で発火点を早める／冗長な調査は<strong>サブエージェントに委譲</strong></td></tr>
+          <tr><td>★★</td><td><strong>モデルと推論設定</strong></td><td>単純作業に Opus を使わない。Sonnet は Opus の<strong>約 4 割</strong>、Haiku は<strong>約 2 割</strong>の単価（<a href="#s7-2">7-2</a>）／<code>/effort</code> を下げる（思考は<strong>出力として課金</strong>）。ただしタスク途中では変えない／固定予算のモデルは <code>MAX_THINKING_TOKENS</code>／<strong>高速モードはコストが問題ならオフ</strong>（入力・出力とも 2 倍）</td></tr>
+          <tr><td>★</td><td><strong>処理を外に出す</strong></td><td>決まりきった処理はフックやスクリプトへ（1 万行のログをフックで <code>ERROR</code> 行だけに絞れば数万トークンが数百に）／CLAUDE.md の参照資料を<strong>スキルへ移す</strong>＝固定費が変動費になる／使っていない MCP を切る（<code>gh</code>・<code>aws</code>・<code>gcloud</code> が使えるならそちらが安い）／型付き言語は<strong>コードインテリジェンス</strong>でファイル全読みを定義ジャンプに置き換える</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="src"><span class="label">Source</span><ul><li><a href="https://code.claude.com/docs/ja/costs">コスト — トークン使用量を削減する</a> / <a href="https://code.claude.com/docs/ja/model-config">モデル設定</a> / <a href="https://code.claude.com/docs/ja/fast-mode">高速モード</a></li></ul></div>
+  </article>
+
+  <article class="slide" id="s7-7" data-slide="7-7" data-slide-title="想定より多いときの診断">
+    <h3>7-7. 想定より多いときの診断</h3>
+    <p>何時間も開いたままのセッションは、体感の作業量に比べてプラン上限を大きく消費します。「席を外していたのに減っている」には、はっきりした原因があります。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>原因</th><th>何が起きているか</th><th>対処</th></tr></thead>
+        <tbody>
+          <tr><td><strong>長いコンテキスト</strong></td><td>毎リクエストで全会話を送る</td><td>タスクの切れ目で <code>/clear</code>。調査はサブエージェントへ</td></tr>
+          <tr><td><strong>キャッシュミス</strong></td><td>キャッシュ寿命を超える中断の後、最初の 1 通が全コンテキストを再処理する</td><td>長い中断の前に <code>/clear</code>。再開は要約から</td></tr>
+          <tr><td><strong>スケジュールタスク</strong></td><td><code>/loop</code> などがアイドル中も間隔ごとに発火する</td><td>不要になったループを止める</td></tr>
+          <tr><td><strong>クロスセッションメッセージ</strong></td><td>他セッションからのメッセージがアイドル時に新しいターンとして配送される</td><td>受信を保留する設定にする</td></tr>
+          <tr><td><strong><code>/goal</code> のチェックイン</strong></td><td>バックグラウンド作業がゴールを待たせている間、アイドルでも評価ターンが起きる</td><td>不要になったゴールを <code>/goal clear</code></td></tr>
+          <tr><td><strong>エージェントチームメイト</strong></td><td>各メンバーが終了するまで消費し続ける</td><td>終わったメンバーを止める</td></tr>
+          <tr><td><strong>コンパクション</strong></td><td>要約の生成に出力トークンを使い、直後に会話キャッシュを作り直す</td><td>継続が不要なら <code>/clear</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="label">原因の特定は <code>/usage</code> が早い</span>
+      <p>Pro / Max / Team / Enterprise では、<code>/usage</code> が<strong>直近の使用量の 10% 以上を占める挙動に自動でフラグを立て</strong>、対処のヒントを添えます。上の表を上から疑うより先に見てください。</p>
+    </div>
+
+    <h4>切り分けの入口</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>症状</th><th>最初に見るもの</th></tr></thead>
+        <tbody>
+          <tr><td>何が消費しているか分からない</td><td><code>/usage</code> の帰属と挙動フラグ → <code>/tasks</code> → <code>/goal</code></td></tr>
+          <tr><td>自動コンパクションが繰り返される（thrashing）</td><td>巨大なファイル／ツール出力を疑う。<code>/clear</code> と読み込み範囲の限定</td></tr>
+          <tr><td>CLAUDE.md・設定・フック・MCP・スキルが効かない</td><td><a href="https://code.claude.com/docs/ja/debug-your-config">設定をデバッグする</a>（<code>/context</code> <code>/doctor</code> <code>/hooks</code> <code>/mcp</code>）</td></tr>
+          <tr><td>CPU / メモリ高負荷、ハング、検索が遅い</td><td><a href="https://code.claude.com/docs/ja/troubleshooting">トラブルシューティング</a></td></tr>
+          <tr><td>エラーメッセージの意味が分からない</td><td><a href="https://code.claude.com/docs/ja/errors">エラーリファレンス</a></td></tr>
+          <tr><td>設定が壊れて起動しない</td><td><code>claude --safe-mode</code></td></tr>
+          <tr><td>インストール・ログインできない</td><td><a href="https://code.claude.com/docs/ja/troubleshoot-install">インストールのトラブルシューティング</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="try">
+      <span class="label">試してみる：詰まったときの初手</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="/usage">/usage               # 何が消費しているか（d / w で期間切替）</span><span class="cmd" data-copy="/tasks">/tasks               # 動き続けているバックグラウンド処理を止める</span><span class="cmd" data-copy="/doctor">/doctor              # セットアップ全体を点検して修正提案</span></code></pre></div>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/costs">コストを効果的に管理する</a> / <a href="https://code.claude.com/docs/ja/troubleshooting">トラブルシューティング</a> / <a href="https://code.claude.com/docs/ja/debug-your-config">設定をデバッグする</a></li>
+      </ul>
+    </div>
+  </article>
+  <article class="slide" id="s7-8" data-slide="7-8" data-slide-title="この章の持ち帰り">
+    <h3>7-8. この章の持ち帰り</h3>
+    <p>コスト削減は精神論ではありません。<strong>効き目の順に 3 つ</strong>やれば大半が片づきます。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>覚えること</th><th>仕事での効き目</th><th>具体的な操作</th></tr></thead>
+        <tbody>
+          <tr><td><strong>コンテキストは有限で、毎ターン丸ごと送る。コストはその長さ × 往復回数 ＋ 出力</strong></td><td>単価やプランが改定されても、「短く保つ」「先頭を固定する」「出力を増やさない」の 3 つが効くことは変わらない。新しい課金項目も、固定分・積み上がり・出力のどれかに位置づけられる</td><td><a href="ch03-core-mechanisms.html#p-context">3-9 コンテキスト</a> のコストの構造</td></tr>
+          <tr><td><strong>モデル・努力レベル・高速モードは冒頭で固定</strong></td><td>途中で変えるとキャッシュが壊れ、そのターンだけ入力が約 10 倍になる</td><td><code>/model</code> <code>/effort</code> は作業開始前に</td></tr>
+          <tr><td><strong>継続不要なら <code>/compact</code> ではなく <code>/clear</code></strong></td><td><code>/clear</code> は要約を生成しないぶん実質コスト 0。惰性で <code>/compact</code> を打たない</td><td>戻る予定があるなら先に <code>/rename</code></td></tr>
+          <tr><td><strong>キャッシュ読みは入力の 1/10、出力は入力の 5 倍</strong></td><td>「キャッシュに乗せる」「出力（思考を含む）を無駄に増やさない」の 2 点に集約できる</td><td>単純作業に Opus と高い <code>/effort</code> を使わない</td></tr>
+          <tr><td><strong>原因調査は <code>/usage</code> が最速</strong></td><td>直近の 10% 以上を占める挙動に自動でフラグが立つ。表を上から疑うより速い</td><td><code>/usage</code>（<code>d</code> / <code>w</code> で期間切替）</td></tr>
+          <tr><td><strong>自分の固定費を一度測る</strong></td><td>毎リクエストに乗る CLAUDE.md・スキル・MCP の総量が分かる。削る優先度が決まる</td><td><code>CLAUDE_CODE_DISABLE_CLAUDE_MDS=1</code> との差分</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="label">意外と知られていない</span>
+      <p><strong>高速モードを会話の途中で有効にすると、その時点のコンテキスト全体を未キャッシュ単価で払い直します。</strong>深いところで入れるほど高くつくので、使うならセッションの最初からです（課金は 1 会話につき 1 回）。もう一つ、<strong>プロンプトキャッシュは実質的にディレクトリ単位</strong>で、worktree は別扱いのため互いのキャッシュを読みません。並列化の隠れたコストです。</p>
+    </div>
+  </article>
+</section>
+
+<!-- PAGER:START -->
+<nav class="pager" aria-label="章の移動">
+  <a class="prev" href="ch06-progress-and-visibility.html" rel="prev"><span class="dir">← 第6章</span><span class="name">進行状況の可視化</span></a>
+  <a class="next" href="ch08-glossary.html" rel="next"><span class="dir">第8章 →</span><span class="name">用語集</span></a>
+</nav>
+<!-- PAGER:END -->
+
+<footer>
+  <p>
+    <strong>Claude Code 体系的入門</strong> — 2026-08-23 作成。
+    記述内容は <a href="https://code.claude.com/docs/ja/overview">Claude Code 公式ドキュメント（日本語版）</a> を基本とし、<strong>日本語版が英語版より古い箇所は <a href="https://code.claude.com/docs/en/overview">英語版</a> に従っています</strong>。
+    製品の更新に伴い仕様が変わる場合があります。実装前に該当ページで最新情報をご確認ください。
+  </p>
+  <p>本資料は学習用にまとめた非公式の整理資料であり、Anthropic による公式配布物ではありません。</p>
+</footer>
+
+</main>
+</div>
+
+<script src="assets/app.js?v=bb7b2612"></script>
+<script src="assets/nav.js?v=770a1e25"></script>
+</body>
+</html>

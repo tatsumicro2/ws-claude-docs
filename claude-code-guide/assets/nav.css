@@ -1,0 +1,155 @@
+/* ============================================================
+   2階層サイドバー・トップページ・章間ナビ
+   元 style.css のデザイントークンをそのまま利用する
+   ============================================================ */
+
+/* ---------- サイドバー ---------- */
+.sidebar{
+  position:sticky; top:0; align-self:start; height:100vh; overflow-y:auto;
+  padding:1.8rem 1rem 3rem 1.5rem; border-right:1px solid var(--line);
+  background:linear-gradient(180deg,var(--bg-alt),var(--bg) 70%);
+  overscroll-behavior:contain;
+}
+.sidebar-brand{
+  display:block; text-decoration:none; color:var(--text);
+  font-family:var(--font-serif); font-size:1rem; line-height:1.35; font-weight:600;
+  padding:.2rem .4rem .9rem; margin:0 0 .9rem; border-bottom:1px solid var(--line);
+}
+.sidebar-brand em{display:block; font-style:normal; color:var(--accent); font-size:.9rem}
+.sidebar-brand:hover{color:var(--accent)}
+
+.sidebar-label{
+  font-family:var(--font-mono); font-size:.66rem; letter-spacing:.2em; text-transform:uppercase;
+  color:var(--muted); margin:0 0 .6rem .4rem; font-weight:600;
+}
+
+.toc-tree{list-style:none; margin:0; padding:0}
+.toc-tree > li{margin:0 0 .05rem}
+
+/* 章の行：タイトルリンク＋開閉ボタン */
+.toc-ch-row{display:flex; align-items:stretch; gap:.15rem; border-radius:var(--radius-s)}
+.toc-ch-row:hover{background:var(--accent-bg)}
+.toc-ch-link{
+  flex:1 1 auto; min-width:0;
+  display:flex; gap:.5rem; align-items:baseline;
+  padding:.34rem .4rem; text-decoration:none;
+  color:var(--text-soft); font-size:.86rem; line-height:1.4; border-radius:var(--radius-s);
+}
+.toc-ch-link:hover{color:var(--accent)}
+.toc-num{
+  font-family:var(--font-mono); font-size:.66rem; color:var(--muted);
+  flex:none; width:1.4em; text-align:right;
+}
+.toc-ch-row.is-current{background:var(--accent-bg)}
+.toc-ch-row.is-current .toc-ch-link{color:var(--accent); font-weight:600}
+.toc-ch-row.is-current .toc-num{color:var(--accent)}
+
+.toc-toggle{
+  flex:none; width:1.7rem; border:0; background:none; cursor:pointer; padding:0;
+  color:var(--muted); border-radius:var(--radius-s);
+  display:flex; align-items:center; justify-content:center;
+}
+.toc-toggle:hover{color:var(--accent); background:var(--accent-soft)}
+.toc-toggle svg{transition:transform .15s ease}
+.toc-toggle[aria-expanded="true"] svg{transform:rotate(90deg)}
+.toc-toggle:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+
+/* 節リスト */
+.toc-sections{
+  list-style:none; margin:.1rem 0 .5rem; padding:0 0 0 .55rem;
+  border-left:1px solid var(--line-strong); margin-left:1.05rem;
+}
+.toc-sections a{
+  display:block; padding:.25rem .45rem; text-decoration:none;
+  color:var(--muted); font-size:.79rem; line-height:1.4; border-radius:var(--radius-s);
+}
+.toc-sections a:hover{background:var(--accent-bg); color:var(--accent)}
+.toc-sections a.is-active{color:var(--accent); background:var(--accent-bg); font-weight:600}
+
+/* ---------- パンくず ---------- */
+.crumb{
+  font-family:var(--font-mono); font-size:.72rem; color:var(--muted);
+  padding:1.6rem 0 .4rem; letter-spacing:.03em;
+}
+.crumb a{color:var(--muted); text-decoration:none}
+.crumb a:hover{color:var(--accent)}
+.crumb span{margin:0 .5rem; color:var(--line-strong)}
+
+/* ---------- 章間ナビ（前後） ---------- */
+.pager{
+  display:grid; grid-template-columns:1fr 1fr; gap:1rem;
+  margin:4rem 0 0; padding-top:1.6rem; border-top:1px solid var(--line-strong);
+}
+.pager a{
+  display:block; padding:.9rem 1.1rem; text-decoration:none;
+  border:1px solid var(--line); border-radius:var(--radius-m);
+  background:var(--surface-2); color:var(--text);
+  transition:border-color .15s ease, background .15s ease;
+}
+.pager a:hover{border-color:var(--accent); background:var(--accent-bg)}
+.pager .dir{
+  display:block; font-family:var(--font-mono); font-size:.66rem; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;
+}
+.pager .name{display:block; font-size:.92rem; line-height:1.4; font-weight:600}
+.pager .next{grid-column:2; text-align:right}
+.pager .prev{grid-column:1}
+
+/* ---------- トップページ：章インデックス ---------- */
+.index-grid{
+  list-style:none; margin:2.5rem 0 0; padding:0;
+  display:grid; gap:1rem; grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+}
+.index-card{
+  display:flex; flex-direction:column; height:100%;
+  padding:1.2rem 1.3rem 1.1rem; text-decoration:none;
+  border:1px solid var(--line); border-radius:var(--radius-m); background:var(--surface);
+  box-shadow:var(--shadow-1); color:var(--text);
+  transition:border-color .15s ease, transform .15s ease;
+}
+.index-card:hover{border-color:var(--accent); transform:translateY(-2px)}
+.index-card .n{
+  font-family:var(--font-mono); font-size:.72rem; font-weight:700; color:var(--accent);
+  letter-spacing:.05em; margin:0 0 .5rem;
+}
+.index-card h2{
+  font-family:var(--font-serif); font-size:1.08rem; line-height:1.4; margin:0 0 .5rem; font-weight:600;
+}
+.index-card p{font-size:.82rem; line-height:1.6; color:var(--text-soft); margin:0 0 .8rem}
+.index-card .count{
+  margin-top:auto; font-family:var(--font-mono); font-size:.68rem; color:var(--muted);
+  letter-spacing:.05em;
+}
+
+/* ---------- レスポンシブ ---------- */
+@media (max-width:900px){
+  .sidebar{
+    position:static; height:auto; border-right:none;
+    border-bottom:1px solid var(--line); padding:1.2rem 1.2rem 1.4rem;
+  }
+  .pager{grid-template-columns:1fr}
+  .pager .next{grid-column:1; text-align:left}
+}
+@media print{
+  .sidebar,.pager,.crumb{display:none}
+  .wrap{display:block}
+  main{padding:0}
+}
+
+/* ---------- 1ページ1章に伴う見出しレベルの調整 ---------- */
+/* 章見出しは h2 → h1 に昇格。元の .chapter h2 と同一の見た目を維持する */
+.chapter h1{
+  font-family:var(--font-serif); font-size:clamp(1.6rem,3.2vw,2.3rem);
+  margin:0; font-weight:600; line-height:1.25;
+}
+.chapter{margin:0 0 2rem}
+
+/* ---------- Details / disclosure ---------- */
+details{margin:0 0 1.4rem; max-width:var(--measure); border:1px solid var(--line); border-radius:var(--radius-m); background:var(--surface-2)}
+details > summary{cursor:pointer; padding:.6rem .95rem; font-size:.9rem; font-weight:700; color:var(--text-soft); list-style:none}
+details > summary::-webkit-details-marker{display:none}
+details > summary::before{content:"\25B8"; display:inline-block; margin-right:.5rem; color:var(--accent); transition:transform .15s ease}
+details[open] > summary::before{transform:rotate(90deg)}
+details > summary:hover{color:var(--accent)}
+details > *:not(summary){margin-left:.95rem; margin-right:.95rem}
+details > pre{margin-bottom:.95rem}

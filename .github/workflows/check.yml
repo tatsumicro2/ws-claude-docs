@@ -1,0 +1,47 @@
+# PR とmain への push で、生成物が最新か・資料に不整合がないかを検査する。
+# 依存は Python 標準ライブラリのみ。PNG の書き出しは Chrome が要るので CI では検査しない。
+name: check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: JSON の構文
+        run: |
+          python3 -m json.tool claude-code-guide/toc.json > /dev/null
+          python3 -m json.tool .claude/settings.json > /dev/null
+
+      - name: 生成物を再生成（ナビ・1 枚 HTML・概要図 SVG）
+        run: |
+          python3 claude-code-guide/tools/build_nav.py
+          python3 claude-code-guide/tools/build_single.py
+          python3 claude-code-overview/export.py --svg-only
+
+      - name: 生成物がコミット内容と一致するか
+        run: |
+          if ! git diff --quiet; then
+            echo "::error::生成物が古い。手元で claude-code-guide/tools/build_nav.py と build_single.py（claude-code-overview を触った場合は claude-code-overview/export.py）を実行してコミットしてください"
+            git --no-pager diff --stat
+            exit 1
+          fi
+
+      - name: 資料の整合性（check_docs.py）
+        run: python3 claude-code-guide/tools/check_docs.py
+
+      - name: フックスクリプトに実行権限があるか
+        run: |
+          for f in .claude/hooks/*.sh; do
+            test -x "$f" || { echo "::error::$f に実行権限がない（chmod +x）"; exit 1; }
+          done

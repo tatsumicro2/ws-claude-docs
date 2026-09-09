@@ -1,0 +1,27 @@
+name: 記述の誤り・古い記述
+description: 本文の誤り、公式ドキュメントと食い違う記述、リンク切れの報告
+labels: ["content"]
+body:
+  - type: input
+    id: location
+    attributes:
+      label: 場所
+      description: 章・節番号（例 7-3）またはファイル名
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: 何が違うか
+      description: 現在の記述と、正しいと考える内容
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: 根拠（公式ドキュメントの URL）
+      description: 英語版と日本語版で内容が異なる場合は英語版を優先する
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 修正案（任意）

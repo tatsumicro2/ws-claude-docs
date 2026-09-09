@@ -1,0 +1,805 @@
+<!-- 2026-09-08: 1 章を 1-1 のみに縮約した際に退避した旧 1-2〜1-10。要点は 3-9 に圧縮して移した -->
+
+    Claude Code は、<strong>LLM にツールを持たせ、ループで回すプログラム</strong>です。この章では、その部品のうち廃れない部分だけを順に取り出します。ここを読めば、残りの章はすべてこの章のどれかの実装として読めます。
+  </p>
+
+  <article class="slide" id="s1-1" data-slide="1-1" data-slide-title="一言でいうと">
+    <h3>1-1. 一言でいうと</h3>
+    <p>まず 1 枚で全体を見ます。AI エージェントは、一般に<strong>LLM・コンテキストウィンドウ・ツール使用・エージェントループ</strong>の 4 つを核とし、その周りをメモリ・ガードレール・拡張・観測性が取り囲む構造をしています。Claude Code はその一実装で、図の各要素の下段が対応する機能です。この章の残りは、この図の核の部分を原理として説明します。</p>
+    <figure>
+      <svg viewBox="0 0 760 600" role="img" aria-label="AI エージェントのコア技術を体系的に示した 1 枚絵。中央にエージェントループがあり、コンテキストウィンドウ、LLM（推論エンジン）、ツール使用（Function Calling）、実行環境の 4 つが矢印で循環し、その中央で検証と完了判定を行う。上に長期メモリ、下にガードレール（制御）、左にインターフェース（入口）、右に拡張とオーケストレーション（マルチエージェント・スキル・MCP・プラグイン）、最下段に運用と観測性が配置されている。各要素の上段は一般的な AI エージェント用語、下段は Claude Code での対応する機能。">
+        <defs>
+          <marker id="ar-core" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <text x="8" y="20" font-size="11" style="fill:var(--text)">AI エージェントのコア技術と、Claude Code での実装</text>
+        <text x="752" y="20" font-size="9.5" text-anchor="end" style="fill:var(--muted)">上段＝一般的な用語 ／ 下段＝Claude Code での対応</text>
+
+        <!-- 長期メモリ -->
+        <rect x="166" y="40" width="428" height="56" rx="6" style="fill:var(--surface-2);stroke:var(--line-strong)" stroke-width="1"/>
+        <text x="180" y="58" font-size="11" font-weight="600" style="fill:var(--text)">長期メモリ（永続化）</text>
+        <text x="180" y="74" font-size="9" style="fill:var(--muted)">CLAUDE.md（プロジェクト／個人への指示）・自動メモリ・セッションの再開</text>
+        <text x="180" y="87" font-size="9" style="fill:var(--muted)">チェックポイント（巻き戻し）— 有限の短期記憶の外側に残すもの</text>
+
+        <!-- インターフェース -->
+        <rect x="8" y="110" width="140" height="320" rx="6" style="fill:var(--surface-2);stroke:var(--line-strong)" stroke-width="1"/>
+        <text x="22" y="130" font-size="11" font-weight="600" style="fill:var(--text)">インターフェース</text>
+        <text x="22" y="145" font-size="9" style="fill:var(--muted)">（入口と実行形態）</text>
+        <g font-size="9" style="fill:var(--text-soft)">
+          <text x="22" y="176">ユーザーとの対話</text>
+          <text x="22" y="204">ターミナル・IDE・</text>
+          <text x="22" y="217">デスクトップ・Web</text>
+          <text x="22" y="245">非対話実行（-p）</text>
+          <text x="22" y="273">CI/CD・GitHub Actions</text>
+          <text x="22" y="301">Agent SDK</text>
+          <text x="22" y="316">（同じループを組み込む）</text>
+        </g>
+
+        <!-- エージェントループ -->
+        <rect x="166" y="110" width="428" height="320" rx="8" style="fill:var(--accent-bg);stroke:var(--accent)" stroke-width="1.4"/>
+        <text x="216" y="128" font-size="10.5" font-weight="600" style="fill:var(--accent)">エージェントループ — 観察 → 推論 → 行動 → 検証を繰り返す</text>
+
+        <g style="fill:var(--surface);stroke:var(--accent)" stroke-width="1.3">
+          <rect x="182" y="140" width="198" height="74" rx="6"/>
+          <rect x="396" y="140" width="182" height="74" rx="6"/>
+          <rect x="396" y="316" width="182" height="74" rx="6"/>
+          <rect x="182" y="316" width="198" height="74" rx="6"/>
+        </g>
+        <g font-size="11" font-weight="600" style="fill:var(--text)">
+          <text x="194" y="158">コンテキストウィンドウ</text>
+          <text x="408" y="158">LLM（推論エンジン）</text>
+          <text x="408" y="334">ツール使用（Function Calling）</text>
+          <text x="194" y="334">実行環境（外界）</text>
+        </g>
+        <g font-size="8.5" style="fill:var(--muted)">
+          <text x="194" y="173">短期記憶。有限で、毎回まるごと送る</text>
+          <text x="194" y="188">システムプロンプト・指示・会話履歴・ツール結果</text>
+          <text x="194" y="201">自動圧縮・/compact・/clear</text>
+          <text x="408" y="173">状態を持たない。入力から次の行動を決める</text>
+          <text x="408" y="188">Claude モデル群・拡張思考・努力レベル</text>
+          <text x="408" y="201">計画・ツール選択・応答の生成</text>
+          <text x="408" y="349">モデルは構造化した「呼び出し」を返すだけ</text>
+          <text x="408" y="364">組み込みツール：Read・Edit・Bash・Grep・</text>
+          <text x="408" y="377">Glob・WebFetch・Agent（サブエージェント）</text>
+          <text x="194" y="349">ハーネスが実行し、副作用はここで起きる</text>
+          <text x="194" y="364">ファイル・シェル・Git・ブラウザ・Web</text>
+          <text x="194" y="377">外部サービス（MCP 経由）</text>
+        </g>
+
+        <g fill="none" stroke="currentColor" stroke-width="1.4" style="color:var(--accent)">
+          <path d="M380,177 H394" marker-end="url(#ar-core)"/>
+          <path d="M487,214 V314" marker-end="url(#ar-core)"/>
+          <path d="M396,353 H382" marker-end="url(#ar-core)"/>
+          <path d="M281,316 V216" marker-end="url(#ar-core)"/>
+        </g>
+        <g font-size="8.5" style="fill:var(--text-soft)">
+          <text x="496" y="258">呼び出し</text>
+          <text x="496" y="270">（tool_use）</text>
+          <text x="272" y="258" text-anchor="end">結果を追記</text>
+          <text x="272" y="270" text-anchor="end">（tool_result）</text>
+        </g>
+
+        <rect x="322" y="236" width="116" height="58" rx="6" stroke-dasharray="4 3" style="fill:var(--surface);stroke:var(--accent)" stroke-width="1.1"/>
+        <text x="380" y="254" font-size="10" font-weight="600" text-anchor="middle" style="fill:var(--text)">検証と完了判定</text>
+        <text x="380" y="269" font-size="8.5" text-anchor="middle" style="fill:var(--muted)">テスト・ビルド・差分で確認</text>
+        <text x="380" y="282" font-size="8.5" text-anchor="middle" style="fill:var(--muted)">通れば終了、失敗なら次の周回</text>
+
+        <text x="380" y="414" font-size="8.5" text-anchor="middle" style="fill:var(--muted)">停止条件：検証が通る ／ 人の確認が必要 ／ 上限（ターン数・コンテキスト）に達する</text>
+
+        <!-- メモリ → コンテキスト、入口 → ループ -->
+        <g fill="none" stroke="currentColor" stroke-width="1.2" style="color:var(--muted)">
+          <path d="M200,96 V138" marker-end="url(#ar-core)"/>
+          <path d="M148,177 H180" marker-end="url(#ar-core)"/>
+          <path d="M610,177 H580" marker-end="url(#ar-core)"/>
+          <path d="M610,353 H580" marker-end="url(#ar-core)"/>
+          <path d="M560,446 V392" stroke-dasharray="4 3" marker-end="url(#ar-core)"/>
+        </g>
+        <text x="208" y="107" font-size="8.5" style="fill:var(--muted)">毎セッション読み込む</text>
+
+        <!-- ガードレール -->
+        <rect x="166" y="446" width="428" height="56" rx="6" style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1"/>
+        <text x="180" y="464" font-size="11" font-weight="600" style="fill:var(--ink)">ガードレール（制御）— 実行の前に割り込む</text>
+        <text x="180" y="480" font-size="9" style="fill:var(--text-soft)">権限モードと権限ルール・ヒューマンインザループ（確認）・サンドボックス</text>
+        <text x="180" y="493" font-size="9" style="fill:var(--text-soft)">フック（決められた位置で決定論的に介入する。モデルの判断に依存しない）</text>
+
+        <!-- 拡張とオーケストレーション -->
+        <rect x="610" y="40" width="142" height="462" rx="6" style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1"/>
+        <text x="624" y="58" font-size="11" font-weight="600" style="fill:var(--ink)">拡張と</text>
+        <text x="624" y="72" font-size="11" font-weight="600" style="fill:var(--ink)">オーケストレーション</text>
+        <g style="fill:var(--surface);stroke:var(--ink)" stroke-width="1">
+          <rect x="620" y="86" width="122" height="94" rx="5"/>
+          <rect x="620" y="190" width="122" height="94" rx="5"/>
+          <rect x="620" y="294" width="122" height="94" rx="5"/>
+          <rect x="620" y="398" width="122" height="94" rx="5"/>
+        </g>
+        <g font-size="10" font-weight="600" style="fill:var(--text)">
+          <text x="630" y="104">マルチエージェント</text>
+          <text x="630" y="208">スキル（手順知識）</text>
+          <text x="630" y="312">MCP（外部接続）</text>
+          <text x="630" y="416">プラグイン</text>
+        </g>
+        <g font-size="8.5" style="fill:var(--muted)">
+          <text x="630" y="120">サブエージェント：</text>
+          <text x="630" y="132">委譲・並列実行・</text>
+          <text x="630" y="144">コンテキストの分離</text>
+          <text x="630" y="160">要約だけを親に返す</text>
+          <text x="630" y="224">必要になった時点で</text>
+          <text x="630" y="236">読み込む手順書</text>
+          <text x="630" y="252">Skills・スラッシュ</text>
+          <text x="630" y="264">コマンド</text>
+          <text x="630" y="328">外部ツールとデータを</text>
+          <text x="630" y="340">つなぐ標準プロトコル</text>
+          <text x="630" y="356">MCP サーバー</text>
+          <text x="630" y="368">（GitHub・DB・SaaS）</text>
+          <text x="630" y="432">上記をまとめて</text>
+          <text x="630" y="444">配布・共有する単位</text>
+          <text x="630" y="460">マーケットプレイス</text>
+        </g>
+
+        <!-- 運用と観測性 -->
+        <rect x="8" y="518" width="744" height="52" rx="6" style="fill:var(--surface-2);stroke:var(--line-strong)" stroke-width="1"/>
+        <text x="22" y="536" font-size="11" font-weight="600" style="fill:var(--text)">運用と観測性 — ループの外から測る</text>
+        <text x="22" y="552" font-size="9" style="fill:var(--muted)">トークンとコストの計測（/cost・/usage）・進行状況の可視化・OpenTelemetry・評価・自動実行の監視。ループのどこで何が消費されたかを見て、上の各要素を調整する</text>
+
+        <text x="380" y="590" font-size="9" text-anchor="middle" style="fill:var(--muted)">出典：Anthropic「Building effective agents」「Claude Code の仕組み」、Claude API ツール使用ドキュメント</text>
+      </svg>
+      <figcaption>図 1-1：AI エージェントのコア技術と、Claude Code での実装。上段が一般的な用語、下段が Claude Code での対応。中央のループが核で、他の要素はすべてループに何かを足すか、ループを制御するか、ループを測るもの。</figcaption>
+    </figure>
+    <p>Claude Code は Anthropic の agentic コーディングツールです。公式ドキュメントの定義では、タスクを与えると<strong>「コンテキストを集め、行動し、結果を検証する」</strong>を必要なだけ繰り返すエージェントです。現在開いているファイルだけを見るインライン補完とは、動き方が根本から違います。</p>
+    <div class="cards">
+      <div class="card"><span class="tag">Read</span><h5>コードベースを読む</h5><p>ファイル検索・全文検索・依存関係の把握。プロジェクト全体が対象。</p></div>
+      <div class="card"><span class="tag">Write</span><h5>ファイルを編集する</h5><p>複数ファイルにまたがる協調的な編集。新規作成・リネーム・再編成まで行う。</p></div>
+      <div class="card"><span class="tag">Execute</span><h5>コマンドを実行する</h5><p>テスト、ビルド、git、パッケージマネージャ。コマンドラインでできることは基本的に実行できる。</p></div>
+      <div class="card"><span class="tag">Verify</span><h5>結果を検証する</h5><p>テスト実行やスクリーンショット比較で自分の作業を確認し、失敗すれば修正を繰り返す。</p></div>
+    </div>
+    <p>「認証のバグを直して」と依頼すると、関連ファイルの探索 → 複数ファイルの読み込み → 協調した編集 → テスト実行 → 必要ならコミット、という一連の流れを自律的に実行します。</p>
+
+    <h4>この章の構成</h4>
+    <p>上の 4 つの動作は、分解すると<strong>数個の廃れない原理</strong>に還元できます。この章はその原理を 1 節ずつ扱い、各節の末尾で「Claude Code ではどの部品として現れるか」を示します。右列の章番号が、周辺技術への入口です。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>節</th><th>廃れない原理</th><th>Claude Code での現れ方（詳細章）</th></tr></thead>
+        <tbody>
+          <tr><td><a href="#s1-2">1-2</a></td><td><strong>部品は 3 つ</strong> — 文字列・関数・ループ</td><td>すべての機能</td></tr>
+          <tr><td><a href="#s1-3">1-3</a></td><td><strong>関数</strong> — 記憶も副作用も持たない</td><td>モデル選択・努力レベル（3-3）</td></tr>
+          <tr><td><a href="#s1-4">1-4</a></td><td><strong>文字列</strong> — 有限で、毎ターン丸ごと送る</td><td>コンテキストウィンドウ（3-6）・コスト（7 章）</td></tr>
+          <tr><td><a href="#s1-5">1-5</a></td><td><strong>接点</strong> — ツール使用</td><td>組み込みツール（3-4）・MCP（13 章）</td></tr>
+          <tr><td><a href="#s1-6">1-6</a></td><td><strong>ループ</strong> — 収集・実行・検証と、収束の条件</td><td>エージェントループ（3-1）・ベストプラクティス（5 章）</td></tr>
+          <tr><td><a href="#s1-7">1-7</a></td><td><strong>記憶と分離</strong> — 文字列の外に残す、文字列を分ける</td><td>CLAUDE.md・自動メモリ（4 章）・Subagents（11 章）</td></tr>
+          <tr><td><a href="#s1-8">1-8</a></td><td><strong>制御</strong> — 副作用はループにしかない</td><td>権限（2-4・15 章）・Hooks（12 章）・巻き戻し（3-7）</td></tr>
+          <tr><td><a href="#s1-9">1-9</a></td><td><strong>全体像</strong> — 1 回のプロンプトが通る道</td><td>全章への案内</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/overview">概要</a> / <a href="https://code.claude.com/docs/ja/how-claude-code-works">Claude Code の仕組み</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s1-2" data-slide="1-2" data-slide-title="部品は 3 つ — 文字列・関数・ループ">
+    <h3>1-2. 部品は 3 つ — 文字列・関数・ループ</h3>
+    <p>数学が最終的に<strong>公理と推論規則</strong>に還元されるように、Claude Code も還元できます。機能の呼び名は数十ありますが、実体は次の <strong>3 つだけ</strong>です。第 2 章以降で扱う内容は、すべてこの 3 つのどれかを操作する話に帰着します。</p>
+    <figure>
+      <svg viewBox="0 0 760 220" role="img" aria-label="還元の図。CLAUDE.md、Skills、Subagents、Hooks、MCP、Plugins、権限モードなど数十ある機能名が、文字列・関数・ループという 3 つの要素に還元されることを示している。">
+        <defs>
+          <marker id="ar-essence" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <text x="162" y="20" text-anchor="middle" font-size="10.5" style="fill:var(--muted)">機能の呼び名は数十ある</text>
+        <g style="fill:var(--surface-2);stroke:var(--line)" stroke-width="1">
+          <rect x="8" y="34" width="96" height="32" rx="16"/>
+          <rect x="114" y="34" width="96" height="32" rx="16"/>
+          <rect x="220" y="34" width="96" height="32" rx="16"/>
+          <rect x="8" y="74" width="96" height="32" rx="16"/>
+          <rect x="114" y="74" width="96" height="32" rx="16"/>
+          <rect x="220" y="74" width="96" height="32" rx="16"/>
+          <rect x="8" y="114" width="96" height="32" rx="16"/>
+          <rect x="114" y="114" width="96" height="32" rx="16"/>
+          <rect x="220" y="114" width="96" height="32" rx="16"/>
+          <rect x="8" y="154" width="96" height="32" rx="16"/>
+          <rect x="114" y="154" width="96" height="32" rx="16"/>
+          <rect x="220" y="154" width="96" height="32" rx="16"/>
+        </g>
+        <g text-anchor="middle" font-size="9.5" style="fill:var(--muted)">
+          <text x="56" y="54">CLAUDE.md</text>
+          <text x="162" y="54">Skills</text>
+          <text x="268" y="54">Subagents</text>
+          <text x="56" y="94">Hooks</text>
+          <text x="162" y="94">MCP</text>
+          <text x="268" y="94">Plugins</text>
+          <text x="56" y="134">権限モード</text>
+          <text x="162" y="134">スラッシュコマンド</text>
+          <text x="268" y="134">設定ファイル</text>
+          <text x="56" y="174">/compact</text>
+          <text x="162" y="174">ステータスライン</text>
+          <text x="268" y="174">…</text>
+        </g>
+
+        <text x="357" y="108" text-anchor="middle" font-size="10.5" style="fill:var(--muted)">還元すると</text>
+        <path d="M330,124 H384" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar-essence)" style="color:var(--muted)"/>
+
+        <text x="576" y="20" text-anchor="middle" font-size="10.5" style="fill:var(--muted)">実体は 3 つ</text>
+        <g style="fill:var(--surface-2);stroke:var(--accent)" stroke-width="1.6">
+          <rect x="400" y="34" width="352" height="52" rx="8"/>
+          <rect x="400" y="94" width="352" height="52" rx="8"/>
+          <rect x="400" y="154" width="352" height="52" rx="8"/>
+        </g>
+        <g font-size="12" style="font-family:var(--font-mono);fill:var(--accent)">
+          <text x="420" y="65">01</text>
+          <text x="420" y="125">02</text>
+          <text x="420" y="185">03</text>
+        </g>
+        <g font-size="14.5" style="fill:var(--text)">
+          <text x="450" y="65">文字列</text>
+          <text x="450" y="125">関数</text>
+          <text x="450" y="185">ループ</text>
+        </g>
+        <g font-size="10.5" style="fill:var(--muted)">
+          <text x="524" y="65">コンテキスト。セッション唯一の状態</text>
+          <text x="524" y="125">モデル。記憶も副作用も持たない</text>
+          <text x="524" y="185">ハーネス。外界に触れる唯一の層</text>
+        </g>
+      </svg>
+      <figcaption>図 1-2：機能の名前をいくら覚えても全体像は見えない。逆に、この 3 つに還元して見れば、未知の機能も位置づけられる。</figcaption>
+    </figure>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>要素</th><th>実体</th><th>性質</th></tr></thead>
+        <tbody>
+          <tr><td><strong>文字列</strong></td><td>コンテキスト（これまでのやりとり全部）</td><td>セッション唯一の状態。<strong>ここに無いものは存在しない</strong></td></tr>
+          <tr><td><strong>関数</strong></td><td>モデル（Claude 本体）</td><td>文字列を受け取り、文字列を返すだけ。<strong>記憶も副作用も持たない</strong></td></tr>
+          <tr><td><strong>ループ</strong></td><td>ハーネス（Claude Code というプログラム）</td><td>関数の出力を実行し、結果を文字列の末尾に足して、また関数へ渡す</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>動作を 1 行で書くと、これがすべてです。</p>
+    <pre><code>文字列 ← 文字列 ＋ ハーネスが実行した結果（モデル（文字列））     … 停止条件まで繰り返す</code></pre>
+    <p>ファイルを編集するのも、テストを走らせるのも、モデルではありません。モデルは「編集したい」と<strong>テキストで書くだけ</strong>で、実際に手を動かすのはハーネスです。この分業が、権限・セキュリティ・フックのすべての土台になっています。</p>
+
+    <h4>一般的な呼び名との対応</h4>
+    <p>この 3 つは本資料の言い方ですが、業界には対応する一般名があります。<strong>他のエージェントツールの説明や論文は、ほぼ次の 4 つの語で書かれています</strong>。4 つ目の「ツール使用」は要素ではなく、関数とループの<strong>接点</strong>です。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>本資料の呼び名</th><th>一般的な呼び名</th><th>何を指すか</th><th>他のツールでの現れ方</th></tr></thead>
+        <tbody>
+          <tr><td><strong>関数</strong></td><td>LLM／基盤モデル</td><td>文字列を受け取り、次に来るトークンを確率的に選んで返す。記憶も副作用も持たない</td><td>多くのツールが同じ数社のモデルを使う。<strong>ツール間の差は関数ではなく、残り 2 つに出る</strong></td></tr>
+          <tr><td><strong>文字列</strong></td><td>コンテキスト（ウィンドウ）／状態／メモリ</td><td>関数に渡す入力の全部。会話・ファイル・ツール結果・指示</td><td>「コンテキストエンジニアリング」「メモリ管理」「圧縮・要約」は、すべてこの文字列の操作</td></tr>
+          <tr><td><strong>ループ</strong></td><td>エージェントループ／ハーネス／オーケストレーター</td><td>関数の出力を解釈して実行し、結果を文字列に足して関数へ戻す</td><td>ReAct（思考 → 行動 → 観察）は同じ構造を説明する概念モデル。2022 年の論文が起源<sup>†</sup></td></tr>
+          <tr><td><strong>関数とループの接点</strong></td><td>ツール使用（tool use）／関数呼び出し（function calling）</td><td>ハーネスがツールの定義を文字列に含め、関数は「このツールをこの引数で」と<strong>構造化した文字列</strong>で返し、ハーネスが実行して結果を文字列に足す</td><td>Claude API では <code>tool_use</code> ブロックと <code>tool_result</code> ブロックの往復（<a href="#s1-5">1-5</a>）。MCP はこの定義と実行を外部サーバーに委ねる標準</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="label">† ReAct は Claude Code の実装根拠ではない</span>
+      <p>公式ドキュメントはループを「収集 → 実行 → 検証」で説明しており（<a href="#s1-6">1-6</a>）、ReAct（Yao ほか、2022）を実装の根拠にはしていません。ReAct を知る意味は、<strong>他のツールや論文の説明が読めるようになること</strong>にあります。内部実装は非公開なので、両者の対応づけは<strong>類推</strong>です（<a href="ch00-about.html#s0-3">0-3</a>）。</p>
+    </div>
+
+    <h4>3 つから導けること</h4>
+    <p>Claude Code の「なぜそうなるのか」は、ほぼすべてこの 3 要素から演繹できます。以降の節は、この表を 1 行ずつ掘り下げたものです。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>よくある疑問</th><th>3 要素からの答え</th><th>節</th></tr></thead>
+        <tbody>
+          <tr><td>会話が長くなるほど遅く・高くなる</td><td>関数が記憶を持たないので、毎ターン<strong>文字列</strong>を丸ごと渡し直している</td><td><a href="#s1-4">1-4</a></td></tr>
+          <tr><td>「さっき言ったよね」が通じないことがある</td><td>コンパクションで<strong>文字列</strong>が要約に置き換わると、元の文言はもう存在しない</td><td><a href="#s1-4">1-4</a></td></tr>
+          <tr><td>MCP サーバーを足すとトークンを食う</td><td>ツールの定義自体が<strong>文字列</strong>として常駐するから</td><td><a href="#s1-5">1-5</a></td></tr>
+          <tr><td>テストを書かせると精度が上がる</td><td><strong>ループ</strong>の各周回に機械的な合否が入り、それが次の周回の<strong>文字列</strong>になるから</td><td><a href="#s1-6">1-6</a></td></tr>
+          <tr><td>CLAUDE.md に書いたのに守られないことがある</td><td><strong>文字列</strong>に足されるだけで、関数への強制力は無い。設定ファイルではなく手紙</td><td><a href="#s1-7">1-7</a></td></tr>
+          <tr><td>サブエージェントを挟むと安く済む</td><td>別の<strong>文字列</strong>で動かし、結果の要約だけを元の文字列に足すから</td><td><a href="#s1-7">1-7</a></td></tr>
+          <tr><td>フックはなぜ確実に効くのか</td><td>関数を通さず<strong>ループ</strong>が直接実行するから。3 要素で唯一の「強制」</td><td><a href="#s1-8">1-8</a></td></tr>
+          <tr><td>権限モードという概念があるのはなぜか</td><td>外界に触れるのは<strong>ループ</strong>だけ。だから止められるのもそこだけ</td><td><a href="#s1-8">1-8</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="label">この見方の効き目</span>
+      <p>個々の機能を暗記する代わりに、<strong>「これは 3 つのどれを触っているのか」</strong>だけを問えばよくなります。新しい機能が追加されたときも、別のツールに移ったときも、同じ問いで位置づけられます。</p>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/how-claude-code-works">Claude Code の仕組み</a></li>
+        <li><a href="https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents">Effective context engineering for AI agents</a>（Anthropic Engineering）</li>
+        <li><a href="https://arxiv.org/abs/2210.03629">ReAct: Synergizing Reasoning and Acting in Language Models</a>（Yao ほか、2022。概念モデルとして参照）</li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s1-3" data-slide="1-3" data-slide-title="関数 — 記憶も副作用も持たない">
+    <h3>1-3. 関数 — 記憶も副作用も持たない</h3>
+    <p>モデルは、<strong>文字列を受け取り、次に来るトークンを 1 つずつ確率的に選んで、文字列を返す関数</strong>です。この 1 文から、製品やモデルの世代が変わっても変わらない事実が 4 つ出てきます。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>廃れない事実</th><th>何が起きるか</th></tr></thead>
+        <tbody>
+          <tr><td><strong>記憶を持たない</strong></td><td>「覚えている」ように見えるのは、毎回これまでの全部を渡し直しているから。渡さなければ知らない（<a href="#s1-4">1-4</a>）</td></tr>
+          <tr><td><strong>副作用を持たない</strong></td><td>ファイルを書くのも、コマンドを打つのも、モデルではない。モデルは「書きたい」とテキストで言うだけ（<a href="#s1-5">1-5</a>）</td></tr>
+          <tr><td><strong>確率的である</strong></td><td>同じ入力でも出力は揺れる。再現性が要る処理はモデルの外——テストやフック——に置く（<a href="#s1-6">1-6</a>、<a href="#s1-8">1-8</a>）</td></tr>
+          <tr><td><strong>推論も出力である</strong></td><td>「考える」時間はトークンとして生成され、出力として課金される。考えさせる量は調整できるが、無料ではない</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h4>Claude Code での現れ方</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>現れ方</th><th>原理との対応</th><th>詳細</th></tr></thead>
+        <tbody>
+          <tr><td>モデルの切り替え（<code>/model</code>）</td><td>関数を差し替える。文字列とループはそのまま</td><td><a href="ch03-core-mechanisms.html#s3-3">3-3</a></td></tr>
+          <tr><td>努力レベル（<code>/effort</code>）</td><td>推論に使う出力トークンの量を変える</td><td><a href="ch03-core-mechanisms.html#s3-3">3-3</a></td></tr>
+          <tr><td>同じ依頼で違う結果が返る</td><td>確率的。指示が悪いとは限らない。揺れて困る処理は検証で受ける</td><td><a href="ch05-best-practices.html#s5-5">5-5</a></td></tr>
+          <tr><td>「さっき言ったよね」が通じない</td><td>記憶はない。文字列に残っているかどうかだけ</td><td><a href="#s1-4">1-4</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="label">モデルを変えても変わらないもの</span>
+      <p>多くのエージェントツールが同じ数社のモデルを使えます。つまり<strong>ツール間の差は関数ではなく、文字列とループの設計に出ます</strong>。だからこの章の残りの節は、関数ではなく残り 2 つと、その接点を扱います。</p>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/how-claude-code-works">Claude Code の仕組み — モデル</a> / <a href="https://code.claude.com/docs/ja/model-config">モデル設定</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s1-4" data-slide="1-4" data-slide-title="文字列 — 有限で、毎ターン丸ごと送る">
+    <h3>1-4. 文字列 — 有限で、毎ターン丸ごと送る</h3>
+    <p>関数に渡す文字列が<strong>コンテキスト</strong>です。セッションの状態はこれだけで、ここに無いものは Claude にとって存在しません。</p>
+    <h4>何が入っているか</h4>
+    <p>公式ドキュメントの列挙では、次の 7 つです。</p>
+    <ul>
+      <li><strong>システム指示</strong>（ハーネスが付ける、あなたには見えない部分）</li>
+      <li><strong>CLAUDE.md</strong>（あなたが書く指示）</li>
+      <li><strong>自動メモリ</strong>（モデルが自分で書き溜めたもの）</li>
+      <li><strong>読み込まれたスキル</strong></li>
+      <li><strong>会話履歴</strong></li>
+      <li><strong>読んだファイルの内容</strong></li>
+      <li><strong>コマンドの出力</strong></li>
+    </ul>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>廃れない事実</th><th>帰結</th></tr></thead>
+        <tbody>
+          <tr><td><strong>有限である</strong></td><td>上限に近づくと、古いツール出力から消され、次に会話が要約される。<strong>要約の後、元の文言はもう無い</strong></td></tr>
+          <tr><td><strong>毎ターン丸ごと送る</strong></td><td>コストと時間は文字列の長さに比例して増える。会話が長いほど、1 往復が高く遅い</td></tr>
+          <tr><td><strong>先頭一致でキャッシュされる</strong></td><td>先頭（システム指示・CLAUDE.md）を変えなければ再利用される。途中でモデルや設定を変えると作り直し</td></tr>
+          <tr><td><strong>中身は目で見える</strong></td><td>会話は 1 行 1 イベントの JSONL としてディスクに保存されている。「覚えている」の正体はこれを読み直していること</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h4>コストの構造</h4>
+    <p>金額は変わるので 7 章に置きますが、<strong>構造は変わりません</strong>。出力トークンは入力より高く、推論も出力として数えられ、キャッシュに乗った入力は乗らない入力より安い。したがって「文字列を短く保つ」「先頭を固定する」「出力（推論を含む）を無駄に増やさない」の 3 つが、金額と速度の両方に効きます。</p>
+    <h4>Claude Code での現れ方</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>現れ方</th><th>原理との対応</th><th>詳細</th></tr></thead>
+        <tbody>
+          <tr><td><code>/context</code></td><td>いま文字列を何が占めているかを見る</td><td><a href="ch03-core-mechanisms.html#s3-6">3-6</a></td></tr>
+          <tr><td><code>/compact</code>・<code>/clear</code></td><td>文字列を要約に置き換える／空にする</td><td><a href="ch03-core-mechanisms.html#s3-6">3-6</a>、<a href="ch07-cost-and-monitoring.html#s7-6">7-6</a></td></tr>
+          <tr><td>プロンプトキャッシュ</td><td>先頭一致の再利用。モデル・設定は冒頭で固定する</td><td><a href="ch07-cost-and-monitoring.html#s7-3">7-3</a></td></tr>
+          <tr><td>CLAUDE.md・rules</td><td>先頭に置かれる文字列。毎ターン送られる固定費</td><td>4 章</td></tr>
+          <tr><td>MCP ツールの定義</td><td>名前だけ常駐し、本体は使うときに読む（遅延ロード）</td><td><a href="ch09-extension-overview.html#s9-5">9-5</a>、<a href="ch13-mcp.html#s13-4">13-4</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="try">
+      <span class="label">試してみる：セッションの実体が 1 本のテキストであることを見る</span>
+      <p>対話中のセッションは、1 行 1 イベントの JSONL ファイルとしてそのまま保存されています。</p>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="ls -lt ~/.claude/projects/*/*.jsonl | head -5">ls -lt ~/.claude/projects/*/*.jsonl | head -5</span></code></pre></div>
+      <p>「覚えている」ように見えるのは、これを読み直して毎回まるごと関数に渡しているからです。<code>/compact</code> は次に渡す文字列を要約で置き換える操作、<code>--resume</code> は過去のセッションを選んで渡し直す操作にあたります。</p>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/how-claude-code-works">Claude Code の仕組み — コンテキストウィンドウ</a> / <a href="https://code.claude.com/docs/ja/context-window">コンテキストウィンドウ</a></li>
+        <li><a href="https://code.claude.com/docs/ja/prompt-caching">プロンプトキャッシュ</a> / <a href="https://code.claude.com/docs/ja/costs">コスト</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s1-5" data-slide="1-5" data-slide-title="接点 — ツール使用">
+    <h3>1-5. 接点 — ツール使用</h3>
+    <p>関数は副作用を持ちません。ではどうやってファイルを編集し、コマンドを実行しているのか。答えは<strong>ツール使用（tool use）</strong>という約束事です。Claude Code に限らず、LLM に「行動」をさせるどの道具も、この往復で動いています。</p>
+    <figure>
+      <svg viewBox="0 0 760 236" role="img" aria-label="ツール使用の往復。左のハーネスが右の関数へ、ツールの定義と文字列を渡す（①）。関数は構造化した呼び出しを返す（②）。ハーネスが権限を確認してツールを実行し、外界に触れる（③）。結果を文字列に足して再び関数へ渡す（④）。関数は実行には関与しない。">
+        <defs>
+          <marker id="ar-tool" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <g style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1.2">
+          <rect x="20" y="30" width="220" height="186" rx="8"/>
+        </g>
+        <g style="fill:var(--accent-bg);stroke:var(--accent)" stroke-width="1.4">
+          <rect x="520" y="30" width="220" height="186" rx="8"/>
+        </g>
+        <g font-size="13" style="fill:var(--text)">
+          <text x="34" y="54">ハーネス（ループ）</text>
+          <text x="534" y="54">関数（モデル）</text>
+        </g>
+        <g font-size="9.5" style="fill:var(--muted)">
+          <text x="34" y="72">ツールの定義を持ち、実行できる</text>
+          <text x="534" y="72">テキストを返すだけ。実行はできない</text>
+          <text x="534" y="176">③ の間、関数は何もしていない</text>
+        </g>
+        <rect x="34" y="130" width="192" height="70" rx="6" style="fill:var(--surface);stroke:var(--ink)" stroke-width="1"/>
+        <g font-size="9.5" style="fill:var(--text)">
+          <text x="46" y="150" font-size="11" font-weight="700">③ 実行</text>
+          <text x="46" y="167">権限を確認 → ツールを動かす</text>
+          <text x="46" y="184">→ ファイル・シェル・外部に触れる</text>
+        </g>
+        <g style="color:var(--muted)">
+          <path d="M240,100 H516" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar-tool)"/>
+          <path d="M520,124 H244" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar-tool)"/>
+          <path d="M240,164 H516" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar-tool)"/>
+        </g>
+        <g font-size="9.5" text-anchor="middle" style="fill:var(--text-soft)">
+          <text x="380" y="94">① ツールの定義（名前・説明・引数のスキーマ）＋ 文字列</text>
+          <text x="380" y="140">② 「このツールを、この引数で」を構造化して返す（tool_use）</text>
+          <text x="380" y="158">④ 結果（tool_result）を文字列の末尾に足して、再び渡す</text>
+        </g>
+        <text x="380" y="226" text-anchor="middle" font-size="9" style="fill:var(--muted)">② と ④ の往復を、停止条件まで繰り返す</text>
+      </svg>
+      <figcaption>図 1-5：ツール使用の往復。関数は「使いたい」と構造化して言うだけで、実行と外界への接触はすべてハーネス側で起きる。</figcaption>
+    </figure>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>廃れない事実</th><th>帰結</th></tr></thead>
+        <tbody>
+          <tr><td><strong>ツールの定義は文字列に入る</strong></td><td>ツールを増やすほど、毎ターンのトークンが増える。定義の遅延ロードはこの対策</td></tr>
+          <tr><td><strong>モデルは選ぶだけで、実行しない</strong></td><td>実行の直前に、人・ルール・フックが割り込める。<strong>権限はここで効く</strong>（<a href="#s1-8">1-8</a>）</td></tr>
+          <tr><td><strong>結果も文字列に戻る</strong></td><td>巨大なコマンド出力は、そのままコンテキストを圧迫する。返す前に絞る価値がある</td></tr>
+          <tr><td><strong>スキーマと説明文が精度を決める</strong></td><td>曖昧な定義は呼び出しがぶれる。MCP サーバーの良し悪しも、結局はここ</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h4>Claude Code での現れ方</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>現れ方</th><th>原理との対応</th><th>詳細</th></tr></thead>
+        <tbody>
+          <tr><td>組み込みツール（ファイル操作・検索・実行・Web・コードインテリジェンス）</td><td>ハーネスが最初から持っているツール定義</td><td><a href="ch03-core-mechanisms.html#s3-4">3-4</a>、<a href="ch03-core-mechanisms.html#s3-8">3-8</a></td></tr>
+          <tr><td>MCP</td><td>定義と実行を外部サーバーに委ねる標準。ハーネスは仲介役になる</td><td>13 章</td></tr>
+          <tr><td>ツール検索</td><td>名前だけ常駐させ、スキーマは使うときに読む</td><td><a href="ch09-extension-overview.html#s9-5">9-5</a>、<a href="ch13-mcp.html#s13-4">13-4</a></td></tr>
+          <tr><td>権限モード・権限ルール</td><td>③ の直前で止める</td><td><a href="ch02-basics-and-interface.html#s2-4">2-4</a>、<a href="ch15-settings-and-security.html#s15-3">15-3</a></td></tr>
+          <tr><td>フック</td><td>③ の直前・直後に決定論的な処理を差し込む</td><td>12 章</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="label">意外と知られていない</span>
+      <p><strong>ツールを 1 つでも渡すと、API 側でツール使用のためのシステムプロンプトが自動で追加されます</strong>（数百トークン規模。モデルごとの値は公式の表にあります）。ツール定義そのものも入力トークンとして課金されます。「MCP を足すと重くなる」の正体は、この 2 つの足し算です。</p>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview">Tool use with Claude</a>（Claude API。<code>input_schema</code> / <code>tool_use</code> / <code>tool_result</code> の往復と、ツール使用の追加トークン）</li>
+        <li><a href="https://code.claude.com/docs/ja/how-claude-code-works">Claude Code の仕組み — ツール</a> / <a href="https://code.claude.com/docs/ja/tools-reference">ツールリファレンス</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s1-6" data-slide="1-6" data-slide-title="ループ — 収集・実行・検証と、収束の条件">
+    <h3>1-6. ループ — 収集・実行・検証と、収束の条件</h3>
+    <p>関数の出力を実行し、結果を文字列に足して、また関数へ渡す。これを繰り返すのがループで、<strong>Claude Code というプログラムの本体</strong>です。公式ドキュメントはこの周回を <strong>収集（gather context）→ 実行（take action）→ 検証（verify results）</strong> の 3 フェーズで説明しています。</p>
+    <ul>
+      <li>3 つのフェーズはきれいに分かれず、混ざりながら進む。質問なら収集だけで終わり、バグ修正なら何周もする</li>
+      <li><strong>何周するかはモデルが決める</strong>。前の周回の結果を見て、次に何をするかを選ぶ</li>
+      <li>あなたもループの一部。<code>Esc</code> で止められ、実行中に文章を送って軌道修正できる</li>
+    </ul>
+    <p>周回の図は <a href="ch03-core-mechanisms.html#s3-1">3-1</a> にあります。ここでは、ループがいつ「うまくいく」のかを扱います。</p>
+    <h4>ループが収束する条件</h4>
+    <p><strong>周回ごとに、機械的な合否が文字列に入ること。</strong>これがすべてです。テスト・型検査・Lint・ビルドが返す合否は、次の周回の文字列になります。合否が返らない仕事では、ループは「それらしいもの」を出して止まるしかありません。同じことを条件に直すと、次の 3 つになります。</p>
+    <ul>
+      <li><strong>対象をテキストで表現できる</strong> — 文字列に入らないものは、関数からは見えない</li>
+      <li><strong>結果を機械が判定できる</strong> — ループは<strong>合否が返ってくる領域でだけ収束する</strong></li>
+      <li><strong>操作を巻き戻せる</strong> — 外れた周回のコストが低い（git、チェックポイント）</li>
+    </ul>
+    <p>ソフトウェア開発は、この 3 条件がたまたま完璧に揃っている領域でした。名前に「Code」が付いているのは、<strong>コードがこの条件を満たすから</strong>です。裏を返せば、3 条件が揃う仕事ならコードでなくても同じように使えます（設定ファイル、インフラ定義、データ変換、原稿の校正）。揃わない仕事——正解が主観的、実行して確かめられない、失敗が取り返しつかない——では、ループを回すほど良くなるという前提が崩れます。<strong>「これは Claude Code に向く仕事か」は、この 3 条件をいくつ満たすかで判断できます。</strong></p>
+    <h4>Claude Code での現れ方</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>現れ方</th><th>原理との対応</th><th>詳細</th></tr></thead>
+        <tbody>
+          <tr><td>プランモード</td><td>実行フェーズを止め、収集だけ回す</td><td><a href="ch02-basics-and-interface.html#s2-4">2-4</a>、<a href="ch06-progress-and-visibility.html#s6-2">6-2</a></td></tr>
+          <tr><td>「テストを先に書いて」</td><td>検証フェーズに合否を入れる依頼。精度が上がる理由はこれ</td><td><a href="ch05-best-practices.html#s5-1">5-1</a>、<a href="ch05-best-practices.html#s5-3">5-3</a></td></tr>
+          <tr><td><code>Esc</code>・実行中の追加指示</td><td>周回の間に人が入る</td><td><a href="ch02-basics-and-interface.html#s2-3">2-3</a></td></tr>
+          <tr><td>同じ問題で 2 回失敗したら <code>/clear</code></td><td>失敗案が文字列に積もると、周回を重ねても収束しない</td><td><a href="ch05-best-practices.html#s5-5">5-5</a></td></tr>
+          <tr><td>フックで Lint・テストを自動実行</td><td>検証を「確率的な指示」から「決定論的な処理」に移す</td><td><a href="ch12-hooks.html#s12-4">12-4</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/how-claude-code-works">Claude Code の仕組み — エージェントループ</a> / <a href="https://code.claude.com/docs/ja/best-practices">ベストプラクティス</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s1-7" data-slide="1-7" data-slide-title="記憶と分離 — 文字列の外に残す、文字列を分ける">
+    <h3>1-7. 記憶と分離 — 文字列の外に残す、文字列を分ける</h3>
+    <p>文字列はセッションが終われば消え、長くなれば要約されます。それでも残したいもの、分けたいものをどう扱うか。原理から出てくる操作は 4 つしかありません。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>操作</th><th>原理</th><th>Claude Code での現れ方</th><th>詳細</th></tr></thead>
+        <tbody>
+          <tr><td><strong>外に残す</strong>（永続化）</td><td>文字列の外——ファイル——に書いて、次のセッションの先頭に読み込む。<strong>人が書く</strong>ものと<strong>モデルが書く</strong>ものの 2 系統</td><td>CLAUDE.md・rules（人）／自動メモリ（モデル）</td><td>4 章</td></tr>
+          <tr><td><strong>分ける</strong>（分離）</td><td>別の文字列で別の関数呼び出しを回し、<strong>要約だけ</strong>を元の文字列に戻す。過程は要らず結果だけ要る仕事に効く</td><td>Subagents・動的ワークフロー</td><td><a href="ch11-subagents.html#s11-1">11-1</a>、<a href="ch06-progress-and-visibility.html#s6-3">6-3</a></td></tr>
+          <tr><td><strong>縮める</strong>（圧縮）</td><td>文字列を要約に置き換える。<strong>損失がある</strong>。何を残すかは指示できる</td><td><code>/compact</code>・自動コンパクション・Compact instructions</td><td><a href="ch03-core-mechanisms.html#s3-6">3-6</a>、<a href="ch07-cost-and-monitoring.html#s7-3">7-3</a></td></tr>
+          <tr><td><strong>捨てる</strong>（新規開始）</td><td>空の文字列から始める。戻ってくるのは永続化したものだけ</td><td><code>/clear</code>・新しいセッション</td><td><a href="ch07-cost-and-monitoring.html#s7-6">7-6</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>廃れない事実</th><th>帰結</th></tr></thead>
+        <tbody>
+          <tr><td><strong>セッションは互いに独立</strong></td><td>新しいセッションは常に空の文字列から始まる。橋渡しは永続化だけ。「昨日の続き」は、同じセッションを開き直すか、永続化で渡すかのどちらか</td></tr>
+          <tr><td><strong>永続化したものは文脈であって強制ではない</strong></td><td>CLAUDE.md も自動メモリも、文字列の先頭に足されるだけ。関数が読んで従う「ことが多い」。必ず守らせたいなら <a href="#s1-8">1-8</a></td></tr>
+          <tr><td><strong>分離すると過程は見えなくなる</strong></td><td>要約だけが戻るので安く速い。代わりに、途中で何をしたかは元の文字列に残らない</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/how-claude-code-works">Claude Code の仕組み — セッション</a> / <a href="https://code.claude.com/docs/ja/memory">メモリ</a> / <a href="https://code.claude.com/docs/ja/sub-agents">サブエージェント</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s1-8" data-slide="1-8" data-slide-title="制御 — 副作用はループにしかない">
+    <h3>1-8. 制御 — 副作用はループにしかない</h3>
+    <p>関数は何も実行できません。実行はすべてハーネスで起きます。だから<strong>止める・制限する・戻す</strong>は、すべてハーネス側に置きます。制御の手段は、性質の違う 2 種類に分かれます。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>種類</th><th>仕組み</th><th>確実さ</th><th>Claude Code での現れ方</th><th>詳細</th></tr></thead>
+        <tbody>
+          <tr><td><strong>ループで強制する</strong></td><td>関数を通さず、実行の直前・直後にハーネスが必ず動かす</td><td><strong>決定論的</strong>。毎回同じように効く</td><td>権限ルール・フック・サンドボックス</td><td>12 章、15 章</td></tr>
+          <tr><td><strong>文脈で頼む</strong></td><td>文字列に指示を置き、関数が読んで従う</td><td><strong>確率的</strong>。従うことが多いが、保証はない</td><td>プロンプト・CLAUDE.md・スキル</td><td>4 章、10 章</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="label">依頼と強制を混同しない</span>
+      <p>CLAUDE.md に「<code>.env</code> を触るな」と書くのは<strong>依頼</strong>です。<code>PreToolUse</code> フックで <code>.env</code> への書き込みをブロックするのは<strong>強制</strong>です。守られなければならない規則は、文字列ではなくループに置く——これは公式ドキュメントも明示している方針です。</p>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>廃れない事実</th><th>帰結</th></tr></thead>
+        <tbody>
+          <tr><td><strong>巻き戻せるのは、ハーネスが自分で触ったものだけ</strong></td><td>ファイル編集は、編集前のスナップショットから戻せる。DB・API・デプロイなど<strong>外部の副作用は戻せない</strong>。だから実行前に止めるしかない</td></tr>
+          <tr><td><strong>止められる場所は 1 か所</strong></td><td>外界に触れるのはループだけなので、権限・サンドボックス・確認ダイアログはすべてツール実行の直前に集まる</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h4>Claude Code での現れ方</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>現れ方</th><th>原理との対応</th><th>詳細</th></tr></thead>
+        <tbody>
+          <tr><td>権限モード（<code>Shift+Tab</code>）</td><td>何を聞かずに実行してよいかを、ツール実行の直前で決める</td><td><a href="ch02-basics-and-interface.html#s2-4">2-4</a></td></tr>
+          <tr><td>権限ルール・設定の階層</td><td>組織 → 個人の順で上書きされる強制ルール</td><td><a href="ch15-settings-and-security.html#s15-1">15-1</a>〜<a href="ch15-settings-and-security.html#s15-3">15-3</a></td></tr>
+          <tr><td>フック</td><td>ライフサイクルの決まった位置で必ず動く処理</td><td>12 章</td></tr>
+          <tr><td>サンドボックス・作業ディレクトリ境界</td><td>触れる範囲そのものを狭める</td><td><a href="ch15-settings-and-security.html#s15-4">15-4</a></td></tr>
+          <tr><td>チェックポイント・<code>/rewind</code></td><td>編集ツールの変更だけを、スナップショットから戻す</td><td><a href="ch03-core-mechanisms.html#s3-7">3-7</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/how-claude-code-works">Claude Code の仕組み — チェックポイントと権限</a> / <a href="https://code.claude.com/docs/ja/features-overview">Claude Code を拡張する — Hook と Skill の比較</a></li>
+        <li><a href="https://code.claude.com/docs/ja/permissions">権限</a> / <a href="https://code.claude.com/docs/ja/hooks-guide">フック</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s1-9" data-slide="1-9" data-slide-title="全体像 — 1 回のプロンプトが通る道">
+    <h3>1-9. 全体像 — 1 回のプロンプトが通る道</h3>
+    <p>ここまでの原理が、製品ではどの部品として現れるか。1 回のプロンプトが通る道を断面にすると、<strong>6 つの領域</strong>に収まります。どの機能も必ずこのどれかに属するので、「今どの領域を読んでいるのか」さえ意識できれば、細部は後から埋まります。</p>
+    <figure>
+      <svg viewBox="0 0 760 404" role="img" aria-label="1 回のプロンプトが通る道を示す断面図。上から順に、入口（サーフェスと実行環境）、状態（コンテキスト）、中心（エージェントループ：収集・実行・検証の反復）、制御（権限とフック）、外界（ファイル・シェル・外部サービス）が縦に並ぶ。左側に拡張レイヤー（Skills・Subagents・MCP・Hooks・Plugins）が状態と中心へ接続し、右側に運用レイヤー（計測と自動実行）が全体を横から観測している。">
+        <defs>
+          <marker id="ar-map" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <text x="376" y="16" text-anchor="middle" font-size="10.5" style="fill:var(--muted)">1 回のプロンプトが通る道</text>
+
+        <g style="fill:var(--surface-2);stroke:var(--line)" stroke-width="1">
+          <rect x="186" y="26" width="380" height="44" rx="6"/>
+          <rect x="186" y="290" width="380" height="46" rx="6"/>
+          <rect x="586" y="26" width="166" height="366" rx="6"/>
+        </g>
+        <g style="fill:var(--accent-bg);stroke:var(--accent)" stroke-width="1.4">
+          <rect x="186" y="90" width="380" height="62" rx="6"/>
+          <rect x="186" y="172" width="380" height="100" rx="6"/>
+        </g>
+        <g style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1">
+          <rect x="8" y="90" width="168" height="222" rx="6"/>
+        </g>
+        <rect x="186" y="354" width="380" height="38" rx="6" stroke-dasharray="5 3" stroke-width="1.2" style="fill:var(--surface-2);stroke:var(--line-strong)"/>
+
+        <g font-size="12" style="fill:var(--text)">
+          <text x="200" y="46">① 入口 — サーフェスと実行環境</text>
+          <text x="200" y="110">② 状態 — コンテキスト</text>
+          <text x="200" y="192">③ 中心 — エージェントループ</text>
+          <text x="200" y="310">⑤ 制御 — 権限モード・権限ルール・フック</text>
+          <text x="22" y="110">④ 拡張</text>
+          <text x="600" y="46">⑥ 運用</text>
+        </g>
+        <g font-size="9.5" style="fill:var(--muted)">
+          <text x="200" y="62">ターミナル・IDE・デスクトップ・Web・モバイル</text>
+          <text x="200" y="128">システム指示／CLAUDE.md・自動メモリ／スキル</text>
+          <text x="200" y="144">＋ 会話履歴・読んだファイル・コマンド出力</text>
+          <text x="200" y="262">モデルが決め、ツールが動かす（操作・検索・実行・Web）</text>
+          <text x="200" y="326">許可されたものだけ通る。編集はチェックポイントで戻せる</text>
+          <text x="600" y="62">全体を横から計測し、外へ出す</text>
+        </g>
+        <g font-size="9" style="font-family:var(--font-mono);fill:var(--accent)">
+          <text x="552" y="46" text-anchor="end">2-5</text>
+          <text x="552" y="110" text-anchor="end">3-6・4 章</text>
+          <text x="552" y="192" text-anchor="end">3-1〜3-4</text>
+          <text x="552" y="310" text-anchor="end">2-4・15 章</text>
+          <text x="162" y="300" text-anchor="end">9〜14 章</text>
+          <text x="738" y="380" text-anchor="end">6・7・16 章</text>
+        </g>
+
+        <g style="fill:var(--surface);stroke:var(--accent)" stroke-width="1.2">
+          <rect x="208" y="204" width="104" height="26" rx="13"/>
+          <rect x="324" y="204" width="104" height="26" rx="13"/>
+          <rect x="440" y="204" width="104" height="26" rx="13"/>
+        </g>
+        <g font-size="11" text-anchor="middle" style="fill:var(--text)">
+          <text x="260" y="221">収集</text>
+          <text x="376" y="221">実行</text>
+          <text x="492" y="221">検証</text>
+        </g>
+        <g style="color:var(--accent)">
+          <path d="M312,217 H322" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar-map)"/>
+          <path d="M428,217 H438" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar-map)"/>
+          <path d="M492,232 V244 H260 V234" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar-map)"/>
+        </g>
+
+        <g style="color:var(--muted)">
+          <path d="M376,70 V86" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar-map)"/>
+          <path d="M376,152 V168" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar-map)"/>
+          <path d="M376,272 V286" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar-map)"/>
+          <path d="M376,336 V350" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar-map)"/>
+          <path d="M566,58 H582" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#ar-map)"/>
+          <path d="M566,222 H582" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#ar-map)"/>
+          <path d="M566,372 H582" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#ar-map)"/>
+        </g>
+        <g style="color:var(--ink)">
+          <path d="M176,140 H184" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar-map)"/>
+          <path d="M176,210 H184" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar-map)"/>
+        </g>
+        <g font-size="9" style="fill:var(--muted)">
+          <text x="384" y="83">プロンプト</text>
+          <text x="384" y="165">毎ターン丸ごと渡す</text>
+          <text x="384" y="283">ツールを使うたびに</text>
+        </g>
+
+        <g font-size="9" style="fill:var(--text-soft)">
+          <text x="22" y="134">Skills・CLAUDE.md</text>
+          <text x="22" y="168">Subagents</text>
+          <text x="22" y="202">MCP</text>
+          <text x="22" y="236">Hooks</text>
+          <text x="22" y="270">Plugins</text>
+        </g>
+        <g font-size="8.5" style="fill:var(--muted)">
+          <text x="30" y="147">→ ② に足す</text>
+          <text x="30" y="181">→ 別の ② を立てる</text>
+          <text x="30" y="215">→ ③ のツールを増やす</text>
+          <text x="30" y="249">→ ③ に割り込む</text>
+          <text x="30" y="283">→ まとめて配る箱</text>
+        </g>
+        <g font-size="8.5" style="fill:var(--muted)">
+          <text x="600" y="88">/context — ② の中身</text>
+          <text x="600" y="108">/usage — コストと内訳</text>
+          <text x="600" y="128">タスク一覧・進捗表示</text>
+          <text x="600" y="148">非対話実行・CI/CD</text>
+          <text x="600" y="168">Agent SDK</text>
+        </g>
+        <text x="376" y="378" text-anchor="middle" font-size="11.5" style="fill:var(--text)">外界 — ファイル・シェル・git・外部サービス</text>
+      </svg>
+      <figcaption>図 1-9：①で受け取り、②を組み立てて③に渡す。③は④で能力を足され、⑤の許可を通ってはじめて外界に触れる。⑥は全体を横から計測する。</figcaption>
+    </figure>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>領域</th><th>答える問い</th><th>主な構成要素</th><th>原理</th><th>詳細</th></tr></thead>
+        <tbody>
+          <tr><td><strong>① 入口</strong><br>サーフェスと実行環境</td><td>どこで動かすか</td><td>ターミナル・IDE 拡張・デスクトップ・Web・モバイル。<strong>コードが動く場所</strong>はローカル／クラウド／リモートコントロールの 3 通り</td><td>—</td><td><a href="ch02-basics-and-interface.html#s2-5">2-5</a>、<a href="ch16-automation-and-sdk.html#s16-1">16-1</a></td></tr>
+          <tr><td><strong>② 状態</strong><br>コンテキストとセッション</td><td>何を見て動くか</td><td>会話履歴・読んだファイル・コマンド出力・CLAUDE.md・自動メモリ・読み込まれたスキル・システム指示</td><td><a href="#s1-4">1-4</a>、<a href="#s1-7">1-7</a></td><td><a href="ch03-core-mechanisms.html#s3-6">3-6</a>、<a href="ch03-core-mechanisms.html#s3-7">3-7</a>、4 章</td></tr>
+          <tr><td><strong>③ 中心</strong><br>エージェントループ</td><td>どう動くか</td><td>収集 → 実行 → 検証の反復。推論するモデルと、実際に動かすツール</td><td><a href="#s1-3">1-3</a>、<a href="#s1-5">1-5</a>、<a href="#s1-6">1-6</a></td><td><a href="ch03-core-mechanisms.html#s3-1">3-1</a>〜<a href="ch03-core-mechanisms.html#s3-4">3-4</a>、5 章</td></tr>
+          <tr><td><strong>④ 拡張</strong><br>知識・接続・自動化</td><td>何を足せるか</td><td>Skills・Subagents・Hooks・MCP・Plugins。足す先は<strong>②に文字列を足す</strong>か<strong>③のループに割り込む</strong>かのどちらか</td><td><a href="#s1-5">1-5</a>、<a href="#s1-7">1-7</a></td><td>9〜14 章</td></tr>
+          <tr><td><strong>⑤ 制御</strong><br>権限・設定・巻き戻し</td><td>どこで止めるか</td><td>権限モード・権限ルール・設定の階層・サンドボックス・チェックポイント</td><td><a href="#s1-8">1-8</a></td><td><a href="ch02-basics-and-interface.html#s2-4">2-4</a>、<a href="ch03-core-mechanisms.html#s3-7">3-7</a>、15 章</td></tr>
+          <tr><td><strong>⑥ 運用</strong><br>計測と自動実行</td><td>どう回し続けるか</td><td>進行状況の可視化・トークンとコストの計測・非対話実行・CI/CD・Agent SDK</td><td><a href="#s1-4">1-4</a></td><td>6 章、7 章、16 章</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>拡張機能はどれを触っているか</h4>
+    <p>④ の拡張は名前が似ていて混同しやすいのですが、3 部品のどれを触るかで見れば区別は簡単です。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>機能</th><th>触る要素</th><th>していること</th><th>詳細</th></tr></thead>
+        <tbody>
+          <tr><td>CLAUDE.md・自動メモリ</td><td>文字列</td><td>毎セッション、決まった文字列を先頭に置く</td><td>4 章</td></tr>
+          <tr><td>Skills</td><td>文字列</td><td>必要になった時点で文字列に差し込む</td><td>10 章</td></tr>
+          <tr><td>Subagents</td><td>文字列</td><td>文字列を分割し、要約だけを親に戻す</td><td>11 章</td></tr>
+          <tr><td>Hooks</td><td>ループ</td><td>周回の決まった位置に、関数を介さない処理を差し込む</td><td>12 章</td></tr>
+          <tr><td>MCP</td><td>ループ（＋文字列）</td><td>ハーネスが実行できる操作を増やす。定義分の文字列を消費する</td><td>13 章</td></tr>
+          <tr><td>権限・設定</td><td>ループ</td><td>ハーネスに実行させるかどうかを決める</td><td>15 章</td></tr>
+          <tr><td>Plugins</td><td>—</td><td>上をまとめて配る箱。<strong>新しい要素は増やさない</strong></td><td>14 章</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>どの章がどの領域か</h4>
+    <p>本資料は「いつ学ぶか」の順路を <a href="ch17-learning-roadmap.html#s17-1">第 17 章</a> に置いています。ここで対応づけるのは「<strong>今どこを学んでいるか</strong>」です。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>章</th><th>主に扱う領域</th><th>読み終えて分かること</th></tr></thead>
+        <tbody>
+          <tr><td>1 Claude Code とは</td><td>原理 ＋ 全体像</td><td>何ができる道具か、なぜそう動くか</td></tr>
+          <tr><td>2 基本操作とインターフェース</td><td>① ＋ ⑤</td><td>どこで動かすか、起動・コマンド・キー操作・権限モード</td></tr>
+          <tr><td>3 コアメカニズム</td><td>② ＋ ③</td><td>ループ・ツール・コンテキスト・セッション</td></tr>
+          <tr><td>4 記憶と指示</td><td>②</td><td>セッションをまたいで何を覚えさせるか</td></tr>
+          <tr><td>5 ベストプラクティス</td><td>③ の回し方</td><td>ループを空回りさせない依頼の仕方</td></tr>
+          <tr><td>6 進行状況の可視化</td><td>⑥</td><td>任せている間に何が起きているかを見る</td></tr>
+          <tr><td>7 コストと運用監視</td><td>② ＋ ⑥</td><td>何にトークンを使い、どう減らすか</td></tr>
+          <tr><td>8 用語集</td><td>全域</td><td>6 領域の言葉を一枚で確認する</td></tr>
+          <tr><td>9〜14 拡張の各章</td><td>④</td><td>何を足すと何が変わるか</td></tr>
+          <tr><td>15 設定・権限・セキュリティ</td><td>⑤</td><td>組織で使うための境界の引き方</td></tr>
+          <tr><td>16 自動化・CI/CD・Agent SDK</td><td>① ＋ ⑥</td><td>対話の外で動かす</td></tr>
+          <tr><td>17 学習ロードマップ</td><td>時間軸</td><td>どの順で身につけるか</td></tr>
+          <tr><td>18 情報ソース一覧</td><td>—</td><td>一次情報の在り処と更新の追い方</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="try">
+      <span class="label">試してみる：6 領域を 1 コマンドずつ覗く</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="/status">/status         # ① どのサーフェス・モデル・アカウントで動いているか</span><span class="cmd" data-copy="/context">/context        # ② いま何が状態を占めているか</span><span class="cmd" data-copy="/mcp">/mcp            # ④ つながっている拡張</span><span class="cmd" data-copy="/permissions">/permissions    # ⑤ 何を許可しているか</span><span class="cmd" data-copy="/usage">/usage          # ⑥ どれだけ使ったか</span></code></pre></div>
+      <p><strong>③ だけは表示コマンドがありません</strong>。画面を流れていくツール実行のログそのものが③です。</p>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/how-claude-code-works">Claude Code の仕組み</a> / <a href="https://code.claude.com/docs/ja/features-overview">Claude Code を拡張する</a> / <a href="https://code.claude.com/docs/ja/context-window">コンテキストウィンドウ</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s1-10" data-slide="1-10" data-slide-title="この章の持ち帰り">
+    <h3>1-10. この章の持ち帰り</h3>
+    <p>この章から実務に持ち帰るのは、<strong>暗記ではなく問いの立て方</strong>です。以下はすべて、製品が変わっても使えます。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>覚えること</th><th>仕事での効き目</th><th>具体的な操作</th></tr></thead>
+        <tbody>
+          <tr><td><strong>3 部品に還元して考える</strong></td><td>新機能が出るたびに学び直さずに済む。「文字列・関数・ループのどれを触るのか」で位置づけられる</td><td>—</td></tr>
+          <tr><td><strong>文字列に無いものは存在しない</strong></td><td>「知らないはずがない」と思ったら、まず文字列に入っているかを疑う。指示は文字列に置く</td><td><code>/context</code> を見る癖</td></tr>
+          <tr><td><strong>実行するのはループだけ</strong></td><td>守らせたい規則はフックへ、止めたい操作は権限へ。CLAUDE.md に書いても保証にはならない</td><td>フック／権限ルール</td></tr>
+          <tr><td><strong>ループは合否が返る領域でだけ収束する</strong></td><td>「AI に任せて大丈夫か」を感覚ではなく条件の数で説明できる。稟議や見積もりでも使える</td><td>テストを先に。検証手段を渡す</td></tr>
+          <tr><td><strong>3 部品を一般名でも言える</strong></td><td>他のツールのドキュメントや論文が読める。「LLM／コンテキスト／エージェントループ／ツール使用」の 4 語で分解できる</td><td><a href="#s1-2">1-2</a> の対応表</td></tr>
+          <tr><td><strong>全体像 → 領域 → 細部の順で読む</strong></td><td>「今どの領域を学んでいるか」が分かると、章の途中で迷わない。未知の機能も調べ先が一意に決まる</td><td><a href="#s1-9">1-9</a> の対応表</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="label">意外と知られていない</span>
+      <p><strong>ツール間の差は、モデルにはほとんど無い。</strong>多くのエージェントツールが同じ数社のモデルを使えるので、違いは「文字列に何をどう入れるか」と「ループのどこで何を強制するか」の設計に出ます。この資料が扱う周辺技術は、すべてその 2 つの設計の話です。</p>
+    </div>
+  </article>
