@@ -1,7 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python3 claude-code-guide/tools/build_nav.py:*)",
+      "Bash(python3 claude-code-guide/tools/build_toc.py:*)",
       "Bash(python3 claude-code-guide/tools/check_docs.py:*)",
       "Bash(python3 claude-code-guide/tools/build_single.py:*)",
       "Bash(python3 claude-code-overview/export.py:*)",

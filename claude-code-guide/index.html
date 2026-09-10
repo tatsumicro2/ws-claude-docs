@@ -3,483 +3,372 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Claude Code 体系的入門 — 基礎から拡張・運用まで</title>
-<meta name="description" content="Claude Code の全分野を公式ドキュメントに基づいて体系化した学習資料。全18章。">
-<link rel="stylesheet" href="assets/style.css?v=78787a44">
-<link rel="stylesheet" href="assets/nav.css?v=25c28aba">
+<title>Claude Code 体系的入門 — 基礎学習ドキュメント</title>
+<meta name="description" content="Claude Code の基礎を公式ドキュメントに基づいて体系化した学習資料。概要・指示・エージェントループ・セッション・ガードレール・コンテキスト管理の全 6 章。">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/nav.css">
 </head>
 <body>
 <div class="wrap">
 
-<!-- NAV:START -->
-<nav class="sidebar" aria-label="目次">
-  <a class="sidebar-brand" href="index.html">Claude Code<em>体系的入門</em></a>
-  <p class="sidebar-label">Contents</p>
-  <ol class="toc-tree">
-    <li>
-      <div class="toc-ch-row">
-        <a class="toc-ch-link" href="ch00-about.html"><span class="toc-num">00</span><span>この資料について</span></a>
-        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-0" aria-label="この資料についての節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </div>
-      <ul class="toc-sections" id="toc-sec-0" hidden>
-        <li><a href="ch00-about.html#s0-1">狙い — 廃れない技術を主軸にする</a></li>
-        <li><a href="ch00-about.html#s0-2">情報ソースと記述の確度</a></li>
-      </ul>
-    </li>
-    <li>
-      <div class="toc-ch-row">
-        <a class="toc-ch-link" href="ch01-what-is-claude-code.html"><span class="toc-num">01</span><span>Claude Code とは</span></a>
-        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-1" aria-label="Claude Code とはの節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </div>
-      <ul class="toc-sections" id="toc-sec-1" hidden>
-        <li><a href="ch01-what-is-claude-code.html#s1-1">AI エージェントのコア技術</a></li>
-      </ul>
-    </li>
-    <li>
-      <div class="toc-ch-row">
-        <a class="toc-ch-link" href="ch02-basics-and-interface.html"><span class="toc-num">02</span><span>基本操作とインターフェース</span></a>
-        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-2" aria-label="基本操作とインターフェースの節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </div>
-      <ul class="toc-sections" id="toc-sec-2" hidden>
-        <li><a href="ch02-basics-and-interface.html#s2-1">CLI の起動パターンと主要フラグ</a></li>
-        <li><a href="ch02-basics-and-interface.html#s2-2">コマンド一覧（ワークフロー別）</a></li>
-        <li><a href="ch02-basics-and-interface.html#s2-3">対話モードのキー操作</a></li>
-        <li><a href="ch02-basics-and-interface.html#s2-4">権限モード</a></li>
-        <li><a href="ch02-basics-and-interface.html#s2-5">サーフェス（動作環境）</a></li>
-        <li><a href="ch02-basics-and-interface.html#s2-6">インストールと最初の起動</a></li>
-        <li><a href="ch02-basics-and-interface.html#s2-7">用途マップ</a></li>
-        <li><a href="ch02-basics-and-interface.html#s2-8">この章の持ち帰り</a></li>
-      </ul>
-    </li>
-    <li>
-      <div class="toc-ch-row">
-        <a class="toc-ch-link" href="ch03-core-mechanisms.html"><span class="toc-num">03</span><span>コアメカニズム</span></a>
-        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-3" aria-label="コアメカニズムの節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </div>
-      <ul class="toc-sections" id="toc-sec-3" hidden>
-        <li><a href="ch03-core-mechanisms.html#s3-1">エージェントループ</a></li>
-        <li><a href="ch03-core-mechanisms.html#s3-2">エージェントハーネス</a></li>
-        <li><a href="ch03-core-mechanisms.html#s3-3">モデルと努力レベル</a></li>
-        <li><a href="ch03-core-mechanisms.html#s3-4">組み込みツール</a></li>
-        <li><a href="ch03-core-mechanisms.html#s3-5">操作できる範囲</a></li>
-        <li><a href="ch03-core-mechanisms.html#s3-6">コンテキストウィンドウ</a></li>
-        <li><a href="ch03-core-mechanisms.html#s3-7">セッション・チェックポイント・巻き戻し</a></li>
-        <li><a href="ch03-core-mechanisms.html#s3-8">ツール別の落とし穴</a></li>
-        <li><a href="ch03-core-mechanisms.html#s3-9">原理 — 製品が変わっても残る事実</a></li>
-        <li><a href="ch03-core-mechanisms.html#s3-10">この章の持ち帰り</a></li>
-      </ul>
-    </li>
-    <li>
-      <div class="toc-ch-row">
-        <a class="toc-ch-link" href="ch04-memory-and-instructions.html"><span class="toc-num">04</span><span>記憶と指示</span></a>
-        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-4" aria-label="記憶と指示の節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </div>
-      <ul class="toc-sections" id="toc-sec-4" hidden>
-        <li><a href="ch04-memory-and-instructions.html#s4-1">2 系統の記憶</a></li>
-        <li><a href="ch04-memory-and-instructions.html#s4-2">CLAUDE.md の置き場所とスコープ</a></li>
-        <li><a href="ch04-memory-and-instructions.html#s4-3">CLAUDE.md の書き方</a></li>
-        <li><a href="ch04-memory-and-instructions.html#s4-4">rules によるパス限定</a></li>
-        <li><a href="ch04-memory-and-instructions.html#s4-5">自動メモリ（auto memory）</a></li>
-        <li><a href="ch04-memory-and-instructions.html#s4-6">指示が効かないときの診断</a></li>
-        <li><a href="ch04-memory-and-instructions.html#s4-7">この章の持ち帰り</a></li>
-      </ul>
-    </li>
-    <li>
-      <div class="toc-ch-row">
-        <a class="toc-ch-link" href="ch05-best-practices.html"><span class="toc-num">05</span><span>ベストプラクティス</span></a>
-        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-5" aria-label="ベストプラクティスの節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </div>
-      <ul class="toc-sections" id="toc-sec-5" hidden>
-        <li><a href="ch05-best-practices.html#s5-1">3 つの基本原則</a></li>
-        <li><a href="ch05-best-practices.html#s5-2">環境を整える</a></li>
-        <li><a href="ch05-best-practices.html#s5-3">対話の技法</a></li>
-        <li><a href="ch05-best-practices.html#s5-4">セッション管理とスケール</a></li>
-        <li><a href="ch05-best-practices.html#s5-5">よくある失敗パターン</a></li>
-        <li><a href="ch05-best-practices.html#s5-6">この章の持ち帰り</a></li>
-      </ul>
-    </li>
-    <li>
-      <div class="toc-ch-row">
-        <a class="toc-ch-link" href="ch06-progress-and-visibility.html"><span class="toc-num">06</span><span>進行状況の可視化</span></a>
-        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-6" aria-label="進行状況の可視化の節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </div>
-      <ul class="toc-sections" id="toc-sec-6" hidden>
-        <li><a href="ch06-progress-and-visibility.html#s6-1">可視化の対象</a></li>
-        <li><a href="ch06-progress-and-visibility.html#s6-2">タスクリスト</a></li>
-        <li><a href="ch06-progress-and-visibility.html#s6-3">動的ワークフロー</a></li>
-        <li><a href="ch06-progress-and-visibility.html#s6-4">実行中セッションの確認</a></li>
-        <li><a href="ch06-progress-and-visibility.html#s6-5">ゴール駆動の継続実行</a></li>
-        <li><a href="ch06-progress-and-visibility.html#s6-6">ステータスライン</a></li>
-        <li><a href="ch06-progress-and-visibility.html#s6-7">並列作業の選び方</a></li>
-        <li><a href="ch06-progress-and-visibility.html#s6-8">この章の持ち帰り</a></li>
-      </ul>
-    </li>
-    <li>
-      <div class="toc-ch-row">
-        <a class="toc-ch-link" href="ch07-cost-and-monitoring.html"><span class="toc-num">07</span><span>コストと運用監視</span></a>
-        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-7" aria-label="コストと運用監視の節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </div>
-      <ul class="toc-sections" id="toc-sec-7" hidden>
-        <li><a href="ch07-cost-and-monitoring.html#s7-1">課金の経路とプラン</a></li>
-        <li><a href="ch07-cost-and-monitoring.html#s7-2">何がトークンを消費するのか</a></li>
-        <li><a href="ch07-cost-and-monitoring.html#s7-3">プロンプトキャッシュ</a></li>
-        <li><a href="ch07-cost-and-monitoring.html#s7-4">言語ごとのトークン量</a></li>
-        <li><a href="ch07-cost-and-monitoring.html#s7-5">使用量の計測</a></li>
-        <li><a href="ch07-cost-and-monitoring.html#s7-6">使用量の削減</a></li>
-        <li><a href="ch07-cost-and-monitoring.html#s7-7">想定より多いときの診断</a></li>
-        <li><a href="ch07-cost-and-monitoring.html#s7-8">この章の持ち帰り</a></li>
-      </ul>
-    </li>
-    <li>
-      <div class="toc-ch-row">
-        <a class="toc-ch-link" href="ch08-glossary.html"><span class="toc-num">08</span><span>用語集</span></a>
-        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-8" aria-label="用語集の節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </div>
-      <ul class="toc-sections" id="toc-sec-8" hidden>
-        <li><a href="ch08-glossary.html#s8-1">コア概念</a></li>
-        <li><a href="ch08-glossary.html#s8-2">拡張・運用</a></li>
-        <li><a href="ch08-glossary.html#s8-3">この章の持ち帰り</a></li>
-      </ul>
-    </li>
-    <li>
-      <div class="toc-ch-row">
-        <a class="toc-ch-link" href="ch09-extension-overview.html"><span class="toc-num">09</span><span>拡張レイヤーの全体像</span></a>
-        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-9" aria-label="拡張レイヤーの全体像の節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </div>
-      <ul class="toc-sections" id="toc-sec-9" hidden>
-        <li><a href="ch09-extension-overview.html#s9-1">拡張機能の全体マップ</a></li>
-        <li><a href="ch09-extension-overview.html#s9-2">機能選択の早見表</a></li>
-        <li><a href="ch09-extension-overview.html#s9-3">導入トリガー</a></li>
-        <li><a href="ch09-extension-overview.html#s9-4">機能ペアの比較</a></li>
-        <li><a href="ch09-extension-overview.html#s9-5">機能別のコンテキストコスト</a></li>
-        <li><a href="ch09-extension-overview.html#s9-6">名前衝突時の優先順位</a></li>
-        <li><a href="ch09-extension-overview.html#s9-7">この章の持ち帰り</a></li>
-      </ul>
-    </li>
-    <li>
-      <div class="toc-ch-row">
-        <a class="toc-ch-link" href="ch10-skills.html"><span class="toc-num">10</span><span>Skills（スキル）</span></a>
-        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-10" aria-label="Skills（スキル）の節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </div>
-      <ul class="toc-sections" id="toc-sec-10" hidden>
-        <li><a href="ch10-skills.html#s10-1">スキルの基本</a></li>
-        <li><a href="ch10-skills.html#s10-2">最小構成とディレクトリ構造</a></li>
-        <li><a href="ch10-skills.html#s10-3">スキルの置き場所と優先順位</a></li>
-        <li><a href="ch10-skills.html#s10-4">主要フロントマターフィールド</a></li>
-        <li><a href="ch10-skills.html#s10-5">引数と動的コンテキスト注入</a></li>
-        <li><a href="ch10-skills.html#s10-6">スキルのライフサイクルと評価</a></li>
-        <li><a href="ch10-skills.html#s10-7">バンドルされたスキル</a></li>
-        <li><a href="ch10-skills.html#s10-8">この章の持ち帰り</a></li>
-      </ul>
-    </li>
-    <li>
-      <div class="toc-ch-row">
-        <a class="toc-ch-link" href="ch11-subagents.html"><span class="toc-num">11</span><span>Subagents と並列実行</span></a>
-        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-11" aria-label="Subagents と並列実行の節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </div>
-      <ul class="toc-sections" id="toc-sec-11" hidden>
-        <li><a href="ch11-subagents.html#s11-1">コンテキスト分離の効果</a></li>
-        <li><a href="ch11-subagents.html#s11-2">カスタムサブエージェントの定義</a></li>
-        <li><a href="ch11-subagents.html#s11-3">主要フロントマターフィールド</a></li>
-        <li><a href="ch11-subagents.html#s11-4">サブエージェントの位置づけ</a></li>
-        <li><a href="ch11-subagents.html#s11-5">活用パターン</a></li>
-        <li><a href="ch11-subagents.html#s11-6">この章の持ち帰り</a></li>
-      </ul>
-    </li>
-    <li>
-      <div class="toc-ch-row">
-        <a class="toc-ch-link" href="ch12-hooks.html"><span class="toc-num">12</span><span>Hooks（フック）</span></a>
-        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-12" aria-label="Hooks（フック）の節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </div>
-      <ul class="toc-sections" id="toc-sec-12" hidden>
-        <li><a href="ch12-hooks.html#s12-1">フックのライフサイクル</a></li>
-        <li><a href="ch12-hooks.html#s12-2">主要イベント一覧</a></li>
-        <li><a href="ch12-hooks.html#s12-3">設定方法と入出力</a></li>
-        <li><a href="ch12-hooks.html#s12-4">典型的なユースケース</a></li>
-        <li><a href="ch12-hooks.html#s12-5">スコープとトラブルシューティング</a></li>
-        <li><a href="ch12-hooks.html#s12-6">この章の持ち帰り</a></li>
-      </ul>
-    </li>
-    <li>
-      <div class="toc-ch-row">
-        <a class="toc-ch-link" href="ch13-mcp.html"><span class="toc-num">13</span><span>MCP（Model Context Protocol）</span></a>
-        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-13" aria-label="MCP（Model Context Protocol）の節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </div>
-      <ul class="toc-sections" id="toc-sec-13" hidden>
-        <li><a href="ch13-mcp.html#s13-1">MCP の位置づけ</a></li>
-        <li><a href="ch13-mcp.html#s13-2">サーバーの追加方法</a></li>
-        <li><a href="ch13-mcp.html#s13-3">インストールスコープ</a></li>
-        <li><a href="ch13-mcp.html#s13-4">コンテキスト効率とガバナンス</a></li>
-        <li><a href="ch13-mcp.html#s13-5">この章の持ち帰り</a></li>
-      </ul>
-    </li>
-    <li>
-      <div class="toc-ch-row">
-        <a class="toc-ch-link" href="ch14-plugins.html"><span class="toc-num">14</span><span>Plugins とマーケットプレイス</span></a>
-        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-14" aria-label="Plugins とマーケットプレイスの節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </div>
-      <ul class="toc-sections" id="toc-sec-14" hidden>
-        <li><a href="ch14-plugins.html#s14-1">スタンドアロン設定との使い分け</a></li>
-        <li><a href="ch14-plugins.html#s14-2">プラグインの構造</a></li>
-        <li><a href="ch14-plugins.html#s14-3">インストールと配布</a></li>
-        <li><a href="ch14-plugins.html#s14-4">この章の持ち帰り</a></li>
-      </ul>
-    </li>
-    <li>
-      <div class="toc-ch-row">
-        <a class="toc-ch-link" href="ch15-settings-and-security.html"><span class="toc-num">15</span><span>設定・権限・セキュリティ</span></a>
-        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-15" aria-label="設定・権限・セキュリティの節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </div>
-      <ul class="toc-sections" id="toc-sec-15" hidden>
-        <li><a href="ch15-settings-and-security.html#s15-1">設定スコープと保存場所</a></li>
-        <li><a href="ch15-settings-and-security.html#s15-2">設定の優先順位</a></li>
-        <li><a href="ch15-settings-and-security.html#s15-3">権限ルールの書き方</a></li>
-        <li><a href="ch15-settings-and-security.html#s15-4">作業ディレクトリ境界とサンドボックス</a></li>
-        <li><a href="ch15-settings-and-security.html#s15-5">プロンプトインジェクション対策</a></li>
-        <li><a href="ch15-settings-and-security.html#s15-6">データの外部送信範囲</a></li>
-        <li><a href="ch15-settings-and-security.html#s15-7">組織展開（エンタープライズ）</a></li>
-        <li><a href="ch15-settings-and-security.html#s15-8">導入リスクと緩和策</a></li>
-        <li><a href="ch15-settings-and-security.html#s15-9">この章の持ち帰り</a></li>
-      </ul>
-    </li>
-    <li>
-      <div class="toc-ch-row">
-        <a class="toc-ch-link" href="ch16-automation-and-sdk.html"><span class="toc-num">16</span><span>自動化・CI/CD・Agent SDK</span></a>
-        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-16" aria-label="自動化・CI/CD・Agent SDKの節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </div>
-      <ul class="toc-sections" id="toc-sec-16" hidden>
-        <li><a href="ch16-automation-and-sdk.html#s16-1">非対話モード</a></li>
-        <li><a href="ch16-automation-and-sdk.html#s16-2">CI/CD と GitHub / GitLab 連携</a></li>
-        <li><a href="ch16-automation-and-sdk.html#s16-3">定期実行とイベント駆動</a></li>
-        <li><a href="ch16-automation-and-sdk.html#s16-4">Claude Agent SDK</a></li>
-        <li><a href="ch16-automation-and-sdk.html#s16-5">この章の持ち帰り</a></li>
-      </ul>
-    </li>
-    <li>
-      <div class="toc-ch-row">
-        <a class="toc-ch-link" href="ch17-learning-roadmap.html"><span class="toc-num">17</span><span>学習ロードマップ</span></a>
-        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-17" aria-label="学習ロードマップの節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </div>
-      <ul class="toc-sections" id="toc-sec-17" hidden>
-        <li><a href="ch17-learning-roadmap.html#s17-1">基礎（1 日目）</a></li>
-        <li><a href="ch17-learning-roadmap.html#s17-2">日常運用（1 週目）</a></li>
-        <li><a href="ch17-learning-roadmap.html#s17-3">拡張（2〜4 週目）</a></li>
-        <li><a href="ch17-learning-roadmap.html#s17-4">チーム展開と自動化（1〜3 か月）</a></li>
-        <li><a href="ch17-learning-roadmap.html#s17-5">この章の持ち帰り</a></li>
-      </ul>
-    </li>
-    <li>
-      <div class="toc-ch-row">
-        <a class="toc-ch-link" href="ch18-sources.html"><span class="toc-num">18</span><span>情報ソース一覧</span></a>
-        <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-sec-18" aria-label="情報ソース一覧の節を開閉"><svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </div>
-      <ul class="toc-sections" id="toc-sec-18" hidden>
-        <li><a href="ch18-sources.html#s18-1">一次情報源（Anthropic 公式）</a></li>
-        <li><a href="ch18-sources.html#s18-2">準公式・関連標準・学習リソース</a></li>
-        <li><a href="ch18-sources.html#s18-3">コミュニティ資料（非公式・取扱注意）</a></li>
-        <li><a href="ch18-sources.html#s18-4">この章の持ち帰り</a></li>
-      </ul>
-    </li>
-  </ol>
-</nav>
-<!-- NAV:END -->
-
 <main>
 
 <header class="masthead">
-  <p class="eyebrow">Systematic Guide · 2026-08 版</p>
+  <p class="eyebrow">Systematic Guide · 2026-09 版</p>
   <h1>Claude Code<br><em>体系的入門</em></h1>
   <p class="lede">
     Claude Code を題材に、<strong>LLM 全般に通用する廃れない基礎技術</strong>を主軸として、AI エージェントが動く仕組みを学ぶための資料です。
     コマンドの一覧ではなく「なぜそう動くのか」を、Anthropic 公式ドキュメント（<code>code.claude.com/docs/ja</code>）を一次情報源として整理しました。
-    基礎概念から拡張機能、企業運用、自動化までを全 19 章（0〜18 章）で扱います。原理の部分は、別のエージェントツールにもそのまま持ち越せます。
+    概要とセットアップ、指示の与え方（スキル・プロンプト・ルール）、エージェントループとハーネス、セッションとチェックポイント、ガードレール、コンテキスト管理とコストの<strong>全 6 章</strong>で、日々の使い方に直結する基礎を扱います。原理の部分は、別のエージェントツールにもそのまま持ち越せます。
   </p>
   <div class="meta-strip">
-    <span><b>作成日</b> 2026-08-23</span>
+    <span><b>作成日</b> 2026-08-23（2026-09-09 改訂）</span>
     <span><b>一次情報源</b> Claude Code 公式ドキュメント（日本語版）</span>
     <span><b>対象</b> 初学者 〜 チーム導入担当</span>
-    <span><b>構成</b> 全 19 章（0〜18）</span>
+    <span><b>構成</b> 全 6 章</span>
   </div>
 </header>
 
-<figure class="overview-figure">
-      <svg viewBox="0 0 760 600" role="img" aria-label="AI エージェントのコア技術を体系的に示した 1 枚絵。中央にエージェントループがあり、コンテキストウィンドウ、LLM（推論エンジン）、ツール使用（Function Calling）、実行環境の 4 つが矢印で循環し、その中央で検証と完了判定を行う。上に長期メモリ、下にガードレール（制御）、左にインターフェース（入口）、右に拡張とオーケストレーション（マルチエージェント・スキル・MCP・プラグイン）、最下段に運用と観測性が配置されている。各要素の上段は一般的な AI エージェント用語、下段は Claude Code での対応する機能。">
-        <defs>
-          <marker id="ar-core" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
-          </marker>
-        </defs>
+<figure class="overview-figure" id="overview-landscape">
+<!-- OVERVIEW:START -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1540 1240" role="img" aria-label="Claude Code の全体像。中央にハーネス（ガードレール、コンテキストウィンドウ、エージェントループ、資源の管理）、左にメモリ・知識と状態の群、右に並列・委任と拡張の群、上にインターフェース、下に実行環境・プラットフォーム・組織と運用の群、最下段に拡張を役割で見分ける帯を配置した図">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&amp;family=Nunito:wght@600;700&amp;display=swap');
+  #overview-landscape .ov-jp { font-family: 'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', 'Hiragino Sans', sans-serif; font-weight: 500; fill: #1a1814; }
+  #overview-landscape .ov-ttl { font-family: 'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', 'Hiragino Sans', sans-serif; font-weight: 700; fill: #1a1814; }
+  #overview-landscape .ov-en { font-family: 'Nunito', 'Zen Maru Gothic', sans-serif; font-weight: 600; fill: #8a8373; }
+  #overview-landscape .ov-note { font-family: 'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', sans-serif; font-weight: 400; fill: #5a5449; }
+  #overview-landscape .ov-c { text-anchor: middle; }
+  #overview-landscape .ov-grp { fill: #e9ece3; stroke: #1a1814; stroke-width: 1.3; stroke-linejoin: round; }
+  #overview-landscape .ov-ink { fill: #fffdf6; stroke: #1a1814; stroke-width: 1.5; stroke-linejoin: round; }
+  #overview-landscape .ov-ink2 { fill: #fbf8ef; stroke: #1a1814; stroke-width: 1.2; stroke-linejoin: round; }
+  #overview-landscape .ov-wash { fill: #f6e5ae; stroke: #1a1814; stroke-width: 1.8; stroke-linejoin: round; }
+  #overview-landscape .ov-hatch { fill: url(#hatch); stroke: none; }
+  #overview-landscape .ov-arrow { fill: none; stroke: #1a1814; stroke-width: 1.6; stroke-linecap: round; marker-end: url(#ah); }
+  #overview-landscape .ov-decor { fill: none; stroke: #c6beac; stroke-width: 1.2; stroke-dasharray: 5 4; }
+  #overview-landscape .ov-decor-dot { fill: #f7f3e9; stroke: #c6beac; stroke-width: 1.2; }
+  #overview-landscape .ov-ic { fill: none; stroke: #1a1814; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  #overview-landscape [id^="el-"] { cursor: pointer; }
+  #overview-landscape .ov-hl { fill: #fbd3a4 !important; stroke: #c9501f !important; stroke-width: 2.6 !important; }
+</style>
+<defs>
+  <marker id="ah" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+    <path d="M1.5 1.5 L8.5 5 L1.5 8.5" fill="none" stroke="#1a1814" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+  <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(-38)">
+    <line x1="0" y1="0" x2="0" y2="7" stroke="#d9bb64" stroke-width="1" opacity=".55"/>
+  </pattern>
 
-        <text x="8" y="20" font-size="11" style="fill:var(--text)">AI エージェントのコア技術と、Claude Code での実装</text>
-        <text x="752" y="20" font-size="9.5" text-anchor="end" style="fill:var(--muted)">上段＝一般的な用語 ／ 下段＝Claude Code での対応</text>
+  <!-- 線画アイコン（24x24） -->
+  <symbol id="i-gear" viewBox="0 0 24 24"><g class="ov-ic"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></g></symbol>
+  <symbol id="i-chip" viewBox="0 0 24 24"><g class="ov-ic"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 6V3M12 6V3M15 6V3M9 21v-3M12 21v-3M15 21v-3M6 9H3M6 12H3M6 15H3M21 9h-3M21 12h-3M21 15h-3"/><path d="M10 12c0-1.5 1-2.5 2-2.5s2 1 2 2.5-1 2.5-2 2.5-2-1-2-2.5z"/></g></symbol>
+  <symbol id="i-loop" viewBox="0 0 24 24"><g class="ov-ic"><path d="M19 12a7 7 0 0 1-12.2 4.7"/><path d="M5 12a7 7 0 0 1 12.2-4.7"/><path d="M17 4v3.5h-3.5"/><path d="M7 20v-3.5h3.5"/></g></symbol>
+  <symbol id="i-window" viewBox="0 0 24 24"><g class="ov-ic"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M7 13h7M7 16h10"/></g></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><g class="ov-ic"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5M9 12h7M9 16h7"/></g></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><g class="ov-ic"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M13 8l3 3M4 20h16"/></g></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><g class="ov-ic"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9z"/><path d="M8 11l1.5 1.5L12 10M8 16l1.5 1.5L12 15M14 12h3M14 17h3"/></g></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><g class="ov-ic"><path d="M8 3v5M16 3v5"/><path d="M6 8h12v3a6 6 0 0 1-12 0z"/><path d="M12 17v4"/></g></symbol>
+  <symbol id="i-agent" viewBox="0 0 24 24"><g class="ov-ic"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></g></symbol>
+  <symbol id="i-team" viewBox="0 0 24 24"><g class="ov-ic"><circle cx="7" cy="8" r="2.6"/><circle cx="17" cy="8" r="2.6"/><circle cx="12" cy="13" r="2.6"/><path d="M2.5 15.5a4.5 4.5 0 0 1 6-3M21.5 15.5a4.5 4.5 0 0 0-6-3M7 21a5 5 0 0 1 10 0"/></g></symbol>
+  <symbol id="i-puzzle" viewBox="0 0 24 24"><g class="ov-ic"><path d="M4 8h4a2 2 0 1 1 4 0h4v4a2 2 0 1 1 0 4v4h-4a2 2 0 1 0-4 0H4v-4a2 2 0 1 0 0-4z"/></g></symbol>
+  <symbol id="i-branch" viewBox="0 0 24 24"><g class="ov-ic"><circle cx="6" cy="5" r="2.2"/><circle cx="6" cy="19" r="2.2"/><circle cx="18" cy="8" r="2.2"/><path d="M6 7.2v9.6M18 10.2c0 4-12 3-12 6.6"/></g></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><g class="ov-ic"><path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4v4.5h4.5"/><path d="M12 8v4.5l3 2"/></g></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><g class="ov-ic"><path d="M6 21V4"/><path d="M6 4h11l-2.5 3.5L17 11H6"/></g></symbol>
+  <symbol id="i-term" viewBox="0 0 24 24"><g class="ov-ic"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M12 15h5"/></g></symbol>
+  <symbol id="i-ide" viewBox="0 0 24 24"><g class="ov-ic"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v16M11 9l2 2-2 2M14 13h3"/></g></symbol>
+  <symbol id="i-desktop" viewBox="0 0 24 24"><g class="ov-ic"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></g></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><g class="ov-ic"><circle cx="9" cy="12" r="7"/><path d="M2.5 12h13M9 5c-2.5 2.5-2.5 11.5 0 14M9 5c2.5 2.5 2.5 11.5 0 14"/><rect x="15" y="10" width="6" height="11" rx="1.5"/></g></symbol>
+  <symbol id="i-ci" viewBox="0 0 24 24"><g class="ov-ic"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 9v6l5-3z"/></g></symbol>
+  <symbol id="i-hash" viewBox="0 0 24 24"><g class="ov-ic"><path d="M9 4l-2 16M17 4l-2 16M4 9h16M3 15h16"/></g></symbol>
+  <symbol id="i-stack" viewBox="0 0 24 24"><g class="ov-ic"><path d="M12 4l9 4.5-9 4.5-9-4.5z"/><path d="M3 12.5l9 4.5 9-4.5M3 16.5l9 4.5 9-4.5"/></g></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><g class="ov-ic"><path d="M7 18a4 4 0 0 1-.5-8 5.5 5.5 0 0 1 10.6 1.2A3.5 3.5 0 0 1 17 18z"/></g></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><g class="ov-ic"><path d="M12 3c.6 4.5 3.5 7.4 8 8-4.5.6-7.4 3.5-8 8-.6-4.5-3.5-7.4-8-8 4.5-.6 7.4-3.5 8-8z"/></g></symbol>
+  <symbol id="i-laptop" viewBox="0 0 24 24"><g class="ov-ic"><rect x="4" y="5" width="16" height="11" rx="2"/><path d="M2 19h20"/></g></symbol>
+  <symbol id="i-remote" viewBox="0 0 24 24"><g class="ov-ic"><rect x="3" y="5" width="12" height="9" rx="2"/><path d="M6 18h6"/><path d="M18 8l3 2-3 2M15 10h6"/></g></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><g class="ov-ic"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></g></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><g class="ov-ic"><path d="M4 20h16M6 17v-6M11 17V7M16 17v-9M21 17V11"/></g></symbol>
+  <symbol id="i-wrench" viewBox="0 0 24 24"><g class="ov-ic"><path d="M14.5 4.5a4.5 4.5 0 0 0-5.6 5.6L4 15l3 3 4.9-4.9a4.5 4.5 0 0 0 5.6-5.6l-2.6 2.6-2.4-2.4z"/></g></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><g class="ov-ic"><path d="M2 12c2.5-4.5 6-7 10-7s7.5 2.5 10 7c-2.5 4.5-6 7-10 7S4.5 16.5 2 12z"/><circle cx="12" cy="12" r="3"/></g></symbol>
+</defs>
 
-        <!-- 長期メモリ -->
-        <rect x="166" y="40" width="428" height="56" rx="6" style="fill:var(--surface-2);stroke:var(--line-strong)" stroke-width="1"/>
-        <text x="180" y="58" font-size="11" font-weight="600" style="fill:var(--text)">長期メモリ（永続化）</text>
-        <text x="180" y="74" font-size="9" style="fill:var(--muted)">CLAUDE.md（プロジェクト／個人への指示）・自動メモリ・セッションの再開</text>
-        <text x="180" y="87" font-size="9" style="fill:var(--muted)">チェックポイント（巻き戻し）— 有限の短期記憶の外側に残すもの</text>
+<!-- 紙 -->
+<rect width="1540" height="1240" fill="#f7f3e9"/>
 
-        <!-- インターフェース -->
-        <rect x="8" y="110" width="140" height="320" rx="6" style="fill:var(--surface-2);stroke:var(--line-strong)" stroke-width="1"/>
-        <text x="22" y="130" font-size="11" font-weight="600" style="fill:var(--text)">インターフェース</text>
-        <text x="22" y="145" font-size="9" style="fill:var(--muted)">（入口と実行形態）</text>
-        <g font-size="9" style="fill:var(--text-soft)">
-          <text x="22" y="176">ユーザーとの対話</text>
-          <text x="22" y="204">ターミナル・IDE・</text>
-          <text x="22" y="217">デスクトップ・Web</text>
-          <text x="22" y="245">非対話実行（-p）</text>
-          <text x="22" y="273">CI/CD・GitHub Actions</text>
-          <text x="22" y="301">Agent SDK</text>
-          <text x="22" y="316">（同じループを組み込む）</text>
-        </g>
+<!-- 隅の回路の落書き -->
+<g class="ov-decor">
+  <polyline points="1180,40 1250,40 1250,66 1320,66"/>
+  <polyline points="1360,30 1360,56 1430,56 1430,76"/>
+</g>
+<g class="ov-decor-dot">
+  <circle cx="1180" cy="40" r="3.5"/><circle cx="1320" cy="66" r="3.5"/><circle cx="1360" cy="30" r="3.5"/><circle cx="1430" cy="76" r="3.5"/>
+</g>
 
-        <!-- エージェントループ -->
-        <rect x="166" y="110" width="428" height="320" rx="8" style="fill:var(--accent-bg);stroke:var(--accent)" stroke-width="1.4"/>
-        <text x="216" y="128" font-size="10.5" font-weight="600" style="fill:var(--accent)">エージェントループ — 観察 → 推論 → 行動 → 検証を繰り返す</text>
+<!-- ===== 線画 ===== -->
+<g>
+  <!-- 上: インターフェース -->
+  <rect id="el-grp-interfaces" class="ov-grp" x="60" y="86" width="1420" height="90" rx="14"/>
+  <rect id="el-terminal" class="ov-ink" x="72"   y="120" width="222" height="44" rx="9"/>
+  <rect id="el-ide" class="ov-ink" x="306"  y="120" width="222" height="44" rx="9"/>
+  <rect id="el-desktop" class="ov-ink" x="540"  y="120" width="222" height="44" rx="9"/>
+  <rect id="el-web-mobile" class="ov-ink" x="774"  y="120" width="222" height="44" rx="9"/>
+  <rect id="el-slack-chrome" class="ov-ink" x="1008" y="120" width="222" height="44" rx="9"/>
+  <rect id="el-cicd" class="ov-ink" x="1242" y="120" width="222" height="44" rx="9"/>
 
-        <g style="fill:var(--surface);stroke:var(--accent)" stroke-width="1.3">
-          <rect x="182" y="140" width="198" height="74" rx="6"/>
-          <rect x="396" y="140" width="182" height="74" rx="6"/>
-          <rect x="396" y="316" width="182" height="74" rx="6"/>
-          <rect x="182" y="316" width="198" height="74" rx="6"/>
-        </g>
-        <g font-size="11" font-weight="600" style="fill:var(--text)">
-          <text x="194" y="158">コンテキストウィンドウ</text>
-          <text x="408" y="158">LLM（推論エンジン）</text>
-          <text x="408" y="334">ツール使用（Function Calling）</text>
-          <text x="194" y="334">実行環境（外界）</text>
-        </g>
-        <g font-size="8.5" style="fill:var(--muted)">
-          <text x="194" y="173">短期記憶。有限で、毎回まるごと送る</text>
-          <text x="194" y="188">システムプロンプト・指示・会話履歴・ツール結果</text>
-          <text x="194" y="201">自動圧縮・/compact・/clear</text>
-          <text x="408" y="173">状態を持たない。入力から次の行動を決める</text>
-          <text x="408" y="188">Claude モデル群・拡張思考・努力レベル</text>
-          <text x="408" y="201">計画・ツール選択・応答の生成</text>
-          <text x="408" y="349">モデルは構造化した「呼び出し」を返すだけ</text>
-          <text x="408" y="364">組み込みツール：Read・Edit・Bash・Grep・</text>
-          <text x="408" y="377">Glob・WebFetch・Agent（サブエージェント）</text>
-          <text x="194" y="349">ハーネスが実行し、副作用はここで起きる</text>
-          <text x="194" y="364">ファイル・シェル・Git・ブラウザ・Web</text>
-          <text x="194" y="377">外部サービス（MCP 経由）</text>
-        </g>
+  <!-- 核: ハーネス（黄土色） -->
+  <rect id="el-harness" class="ov-wash"  x="420" y="200" width="700" height="550" rx="18"/>
+  <rect class="ov-hatch" x="420" y="200" width="700" height="550" rx="18"/>
 
-        <g fill="none" stroke="currentColor" stroke-width="1.4" style="color:var(--accent)">
-          <path d="M380,177 H394" marker-end="url(#ar-core)"/>
-          <path d="M487,214 V314" marker-end="url(#ar-core)"/>
-          <path d="M396,353 H382" marker-end="url(#ar-core)"/>
-          <path d="M281,316 V216" marker-end="url(#ar-core)"/>
-        </g>
-        <g font-size="8.5" style="fill:var(--text-soft)">
-          <text x="496" y="258">呼び出し</text>
-          <text x="496" y="270">（tool_use）</text>
-          <text x="272" y="258" text-anchor="end">結果を追記</text>
-          <text x="272" y="270" text-anchor="end">（tool_result）</text>
-        </g>
+  <!-- 行 A: ガードレール -->
+  <rect id="el-permissions" class="ov-ink" x="444" y="266" width="208" height="50" rx="8"/>
+  <rect id="el-hooks" class="ov-ink" x="664" y="266" width="208" height="50" rx="8"/>
+  <rect id="el-sandbox" class="ov-ink" x="884" y="266" width="208" height="50" rx="8"/>
 
-        <rect x="322" y="236" width="116" height="58" rx="6" stroke-dasharray="4 3" style="fill:var(--surface);stroke:var(--accent)" stroke-width="1.1"/>
-        <text x="380" y="254" font-size="10" font-weight="600" text-anchor="middle" style="fill:var(--text)">検証と完了判定</text>
-        <text x="380" y="269" font-size="8.5" text-anchor="middle" style="fill:var(--muted)">テスト・ビルド・差分で確認</text>
-        <text x="380" y="282" font-size="8.5" text-anchor="middle" style="fill:var(--muted)">通れば終了、失敗なら次の周回</text>
+  <!-- 行 B: 資源の管理 -->
+  <rect id="el-context-management" class="ov-ink" x="444" y="674" width="154" height="50" rx="8"/>
+  <rect id="el-prompt-caching" class="ov-ink" x="610" y="674" width="154" height="50" rx="8"/>
+  <rect id="el-tokens-cost" class="ov-ink" x="776" y="674" width="154" height="50" rx="8"/>
+  <rect id="el-model-config" class="ov-ink" x="942" y="674" width="154" height="50" rx="8"/>
 
-        <text x="380" y="414" font-size="8.5" text-anchor="middle" style="fill:var(--muted)">停止条件：検証が通る ／ 人の確認が必要 ／ 上限（ターン数・コンテキスト）に達する</text>
+  <!-- コンテキストウィンドウ -->
+  <rect id="el-context-window" class="ov-ink" x="444" y="340" width="270" height="320" rx="12"/>
+  <rect id="el-ctx-system-prompt" class="ov-ink2" x="456" y="390" width="246" height="44" rx="6"/>
+  <rect id="el-ctx-memory" class="ov-ink2" x="456" y="442" width="246" height="96" rx="6"/>
+  <rect id="el-ctx-skills" class="ov-ink2" x="456" y="546" width="246" height="44" rx="6"/>
+  <rect id="el-ctx-conversation" class="ov-ink2" x="456" y="598" width="246" height="50" rx="6"/>
 
-        <!-- メモリ → コンテキスト、入口 → ループ -->
-        <g fill="none" stroke="currentColor" stroke-width="1.2" style="color:var(--muted)">
-          <path d="M200,96 V138" marker-end="url(#ar-core)"/>
-          <path d="M148,177 H180" marker-end="url(#ar-core)"/>
-          <path d="M610,177 H580" marker-end="url(#ar-core)"/>
-          <path d="M610,353 H580" marker-end="url(#ar-core)"/>
-          <path d="M560,446 V392" stroke-dasharray="4 3" marker-end="url(#ar-core)"/>
-        </g>
-        <text x="208" y="107" font-size="8.5" style="fill:var(--muted)">毎セッション読み込む</text>
+  <!-- エージェントループ（収集 → 実行 → 検証）+ 組み込みツール -->
+  <rect id="el-agentic-loop" class="ov-ink" x="840" y="340" width="256" height="320" rx="12"/>
+  <path class="ov-arrow" d="M1020.7 407.2 A82 82 0 0 1 1049.7 477.1"/>
+  <path class="ov-arrow" d="M989.2 549.2 A82 82 0 0 1 946.8 549.2"/>
+  <path class="ov-arrow" d="M886.3 477.1 A82 82 0 0 1 905.2 417.3"/>
+  <rect id="el-loop-gather" class="ov-ink2" x="918" y="373" width="100" height="30" rx="15"/>
+  <rect id="el-loop-act" class="ov-ink2" x="981" y="508" width="100" height="30" rx="15"/>
+  <rect id="el-loop-verify" class="ov-ink2" x="855" y="508" width="100" height="30" rx="15"/>
+  <circle id="el-model" class="ov-wash" cx="968" cy="470" r="26"/>
+  <circle class="ov-hatch" cx="968" cy="470" r="26"/>
+  <rect id="el-builtin-tools" class="ov-ink2" x="852" y="572" width="232" height="68" rx="8"/>
 
-        <!-- ガードレール -->
-        <rect x="166" y="446" width="428" height="56" rx="6" style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1"/>
-        <text x="180" y="464" font-size="11" font-weight="600" style="fill:var(--ink)">ガードレール（制御）— 実行の前に割り込む</text>
-        <text x="180" y="480" font-size="9" style="fill:var(--text-soft)">権限モードと権限ルール・ヒューマンインザループ（確認）・サンドボックス</text>
-        <text x="180" y="493" font-size="9" style="fill:var(--text-soft)">フック（決められた位置で決定論的に介入する。モデルの判断に依存しない）</text>
+  <!-- 核の中の矢印（窓 → ループ、ループ → 窓） -->
+  <path class="ov-arrow" d="M714 412 H838"/>
+  <path class="ov-arrow" d="M840 623 H716"/>
 
-        <!-- 拡張とオーケストレーション -->
-        <rect x="610" y="40" width="142" height="462" rx="6" style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1"/>
-        <text x="624" y="58" font-size="11" font-weight="600" style="fill:var(--ink)">拡張と</text>
-        <text x="624" y="72" font-size="11" font-weight="600" style="fill:var(--ink)">オーケストレーション</text>
-        <g style="fill:var(--surface);stroke:var(--ink)" stroke-width="1">
-          <rect x="620" y="86" width="122" height="94" rx="5"/>
-          <rect x="620" y="190" width="122" height="94" rx="5"/>
-          <rect x="620" y="294" width="122" height="94" rx="5"/>
-          <rect x="620" y="398" width="122" height="94" rx="5"/>
-        </g>
-        <g font-size="10" font-weight="600" style="fill:var(--text)">
-          <text x="630" y="104">マルチエージェント</text>
-          <text x="630" y="208">スキル（手順知識）</text>
-          <text x="630" y="312">MCP（外部接続）</text>
-          <text x="630" y="416">プラグイン</text>
-        </g>
-        <g font-size="8.5" style="fill:var(--muted)">
-          <text x="630" y="120">サブエージェント：</text>
-          <text x="630" y="132">委譲・並列実行・</text>
-          <text x="630" y="144">コンテキストの分離</text>
-          <text x="630" y="160">要約だけを親に返す</text>
-          <text x="630" y="224">必要になった時点で</text>
-          <text x="630" y="236">読み込む手順書</text>
-          <text x="630" y="252">Skills・スラッシュ</text>
-          <text x="630" y="264">コマンド</text>
-          <text x="630" y="328">外部ツールとデータを</text>
-          <text x="630" y="340">つなぐ標準プロトコル</text>
-          <text x="630" y="356">MCP サーバー</text>
-          <text x="630" y="368">（GitHub・DB・SaaS）</text>
-          <text x="630" y="432">上記をまとめて</text>
-          <text x="630" y="444">配布・共有する単位</text>
-          <text x="630" y="460">マーケットプレイス</text>
-        </g>
+  <!-- 左: メモリ・知識 / 状態 -->
+  <rect id="el-grp-memory" class="ov-grp" x="60" y="254" width="264" height="242" rx="14"/>
+  <rect id="el-claude-md-rules" class="ov-ink" x="72" y="296" width="240" height="52" rx="9"/>
+  <rect id="el-auto-memory" class="ov-ink" x="72" y="358" width="240" height="52" rx="9"/>
+  <rect id="el-skills" class="ov-ink" x="72" y="420" width="240" height="52" rx="9"/>
+  <rect id="el-grp-state" class="ov-grp" x="60" y="516" width="264" height="180" rx="14"/>
+  <rect id="el-sessions" class="ov-ink" x="72" y="558" width="240" height="52" rx="9"/>
+  <rect id="el-checkpoints" class="ov-ink" x="72" y="620" width="240" height="52" rx="9"/>
 
-        <!-- 運用と観測性 -->
-        <rect x="8" y="518" width="744" height="52" rx="6" style="fill:var(--surface-2);stroke:var(--line-strong)" stroke-width="1"/>
-        <text x="22" y="536" font-size="11" font-weight="600" style="fill:var(--text)">運用と観測性 — ループの外から測る</text>
-        <text x="22" y="552" font-size="9" style="fill:var(--muted)">トークンとコストの計測（/cost・/usage）・進行状況の可視化・OpenTelemetry・評価・自動実行の監視。ループのどこで何が消費されたかを見て、上の各要素を調整する</text>
+  <!-- 右: 並列・委任 / 拡張 -->
+  <rect id="el-grp-orchestration" class="ov-grp" x="1216" y="254" width="264" height="242" rx="14"/>
+  <rect id="el-subagents" class="ov-ink" x="1228" y="296" width="240" height="52" rx="9"/>
+  <rect id="el-agent-teams" class="ov-ink" x="1228" y="358" width="240" height="52" rx="9"/>
+  <rect id="el-worktrees" class="ov-ink" x="1228" y="420" width="240" height="52" rx="9"/>
+  <rect id="el-grp-extensions" class="ov-grp" x="1216" y="516" width="264" height="180" rx="14"/>
+  <rect id="el-mcp-servers" class="ov-ink" x="1228" y="558" width="240" height="52" rx="9"/>
+  <rect id="el-plugins" class="ov-ink" x="1228" y="620" width="240" height="52" rx="9"/>
 
-        <text x="380" y="590" font-size="9" text-anchor="middle" style="fill:var(--muted)">出典：Anthropic「Building effective agents」「Claude Code の仕組み」、Claude API ツール使用ドキュメント</text>
-      </svg>
-      <figcaption>本資料の全体像。AI エージェントは「LLM・コンテキストウィンドウ・ツール使用・エージェントループ」を核に、メモリ・ガードレール・拡張・観測性で取り囲んだ構造を持つ。Claude Code はその一実装であり、各章はこの図のどこかを扱う。</figcaption>
+  <!-- 下段: 実行環境 / プラットフォーム / 組織と運用 -->
+  <rect id="el-grp-environments" class="ov-grp" x="60" y="780" width="264" height="240" rx="14"/>
+  <rect id="el-env-local" class="ov-ink" x="72" y="818" width="240" height="52" rx="9"/>
+  <rect id="el-env-cloud" class="ov-ink" x="72" y="880" width="240" height="52" rx="9"/>
+  <rect id="el-env-remote" class="ov-ink" x="72" y="942" width="240" height="52" rx="9"/>
+
+  <rect id="el-grp-platform" class="ov-grp" x="420" y="780" width="700" height="240" rx="14"/>
+  <rect id="el-agent-sdk" class="ov-ink" x="436" y="818" width="668" height="52" rx="9"/>
+  <rect id="el-claude-api" class="ov-ink" x="436" y="880" width="668" height="52" rx="9"/>
+  <rect id="el-claude-models" class="ov-ink" x="436" y="942" width="668" height="52" rx="9"/>
+
+  <rect id="el-grp-admin" class="ov-grp" x="1216" y="780" width="264" height="240" rx="14"/>
+  <rect id="el-managed-settings" class="ov-ink" x="1228" y="818" width="240" height="52" rx="9"/>
+  <rect id="el-monitoring" class="ov-ink" x="1228" y="880" width="240" height="52" rx="9"/>
+  <rect id="el-analytics" class="ov-ink" x="1228" y="942" width="240" height="52" rx="9"/>
+
+  <!-- 最下段: 拡張を役割で見分ける -->
+  <rect id="el-grp-roles" class="ov-grp" x="60" y="1050" width="1420" height="156" rx="14"/>
+  <rect id="el-role-instructions" class="ov-ink" x="72"   y="1088" width="337" height="104" rx="9"/>
+  <rect id="el-role-tools" class="ov-ink" x="421"  y="1088" width="337" height="104" rx="9"/>
+  <rect id="el-role-automation" class="ov-ink" x="770"  y="1088" width="337" height="104" rx="9"/>
+  <rect id="el-role-packaging" class="ov-ink" x="1119" y="1088" width="337" height="104" rx="9"/>
+</g>
+
+<!-- ===== アイコン ===== -->
+<use href="#i-term"    x="84"   y="130" width="24" height="24"/>
+<use href="#i-ide"     x="318"  y="130" width="24" height="24"/>
+<use href="#i-desktop" x="552"  y="130" width="24" height="24"/>
+<use href="#i-phone"   x="786"  y="130" width="24" height="24"/>
+<use href="#i-hash"    x="1020" y="130" width="24" height="24"/>
+<use href="#i-ci"      x="1254" y="130" width="24" height="24"/>
+
+<use href="#i-gear"    x="444" y="214" width="26" height="26"/>
+<use href="#i-window"  x="456" y="351" width="18" height="18"/>
+<use href="#i-loop"    x="852" y="351" width="18" height="18"/>
+<use href="#i-chip"    x="958" y="450" width="20" height="20"/>
+<use href="#i-wrench"  x="862" y="580" width="20" height="20"/>
+
+<use href="#i-doc"     x="84" y="310" width="24" height="24"/>
+<use href="#i-pen"     x="84" y="372" width="24" height="24"/>
+<use href="#i-list"    x="84" y="434" width="24" height="24"/>
+<use href="#i-history" x="84" y="572" width="24" height="24"/>
+<use href="#i-flag"    x="84" y="634" width="24" height="24"/>
+
+<use href="#i-agent"   x="1240" y="310" width="24" height="24"/>
+<use href="#i-team"    x="1240" y="372" width="24" height="24"/>
+<use href="#i-branch"  x="1240" y="434" width="24" height="24"/>
+<use href="#i-plug"    x="1240" y="572" width="24" height="24"/>
+<use href="#i-puzzle"  x="1240" y="634" width="24" height="24"/>
+
+<use href="#i-laptop"  x="84" y="832" width="24" height="24"/>
+<use href="#i-cloud"   x="84" y="894" width="24" height="24"/>
+<use href="#i-remote"  x="84" y="956" width="24" height="24"/>
+
+<use href="#i-stack"   x="452" y="832" width="24" height="24"/>
+<use href="#i-cloud"   x="452" y="894" width="24" height="24"/>
+<use href="#i-spark"   x="452" y="956" width="24" height="24"/>
+
+<use href="#i-shield"  x="1240" y="832" width="24" height="24"/>
+<use href="#i-eye"     x="1240" y="894" width="24" height="24"/>
+<use href="#i-chart"   x="1240" y="956" width="24" height="24"/>
+
+<!-- ===== 文字 ===== -->
+<!-- タイトル -->
+<text class="ov-ttl" x="60" y="58" font-size="28">Claude Code の全体像<tspan class="ov-en" dx="12" font-size="15">Claude Code landscape</tspan></text>
+
+<!-- 上: インターフェース -->
+<text class="ov-ttl" x="76" y="108" font-size="14">インターフェース<tspan class="ov-en" dx="6" font-size="11">Interfaces</tspan><tspan class="ov-note" dx="12" font-size="11">どこから使っても、動くエージェントループは同じ</tspan></text>
+<text class="ov-jp" x="118"  y="138" font-size="14">ターミナル</text><text class="ov-en" x="118"  y="155" font-size="10.5">CLI</text>
+<text class="ov-jp" x="352"  y="138" font-size="14">IDE 拡張機能</text><text class="ov-en" x="352"  y="155" font-size="10.5">VS Code / JetBrains</text>
+<text class="ov-jp" x="586"  y="138" font-size="14">デスクトップアプリ</text><text class="ov-en" x="586"  y="155" font-size="10.5">Desktop app</text>
+<text class="ov-jp" x="820"  y="138" font-size="14">Web・モバイル</text><text class="ov-en" x="820"  y="155" font-size="10.5">claude.ai/code</text>
+<text class="ov-jp" x="1054" y="138" font-size="14">Slack・Chrome</text><text class="ov-en" x="1054" y="155" font-size="10.5">Integrations</text>
+<text class="ov-jp" x="1288" y="138" font-size="14">CI/CD・非対話</text><text class="ov-en" x="1288" y="155" font-size="10.5">GitHub Actions / claude -p</text>
+
+<!-- 核 -->
+<text class="ov-ttl" x="480" y="234" font-size="19">ハーネス<tspan class="ov-en" dx="8" font-size="13">Agentic harness</tspan><tspan class="ov-note" dx="14" font-size="11">モデルを囲み、ツール・コンテキスト管理・実行環境を与える層</tspan></text>
+<text class="ov-ttl" x="444" y="258" font-size="11">ガードレール<tspan class="ov-en" dx="5" font-size="10">Guardrails</tspan></text>
+<text class="ov-jp ov-c" x="548" y="284" font-size="13">権限<tspan class="ov-en" dx="5" font-size="10">Permissions</tspan></text><text class="ov-note ov-c" x="548" y="304" font-size="10">権限モードと許可ルールで制御</text>
+<text class="ov-jp ov-c" x="768" y="284" font-size="13">フック<tspan class="ov-en" dx="5" font-size="10">Hooks</tspan></text><text class="ov-note ov-c" x="768" y="304" font-size="10">イベントで必ず実行される処理</text>
+<text class="ov-jp ov-c" x="988" y="284" font-size="13">サンドボックス<tspan class="ov-en" dx="5" font-size="10">Sandboxing</tspan></text><text class="ov-note ov-c" x="988" y="304" font-size="10">ファイルとネットワークを分離</text>
+<text class="ov-jp ov-c" x="521" y="692" font-size="13">コンテキスト管理</text><text class="ov-en ov-c" x="521" y="705" font-size="10">Context management</text><text class="ov-note ov-c" x="521" y="718" font-size="10">自動コンパクションと /clear</text>
+<text class="ov-jp ov-c" x="687" y="692" font-size="13">プロンプトキャッシング</text><text class="ov-en ov-c" x="687" y="705" font-size="10">Prompt caching</text><text class="ov-note ov-c" x="687" y="718" font-size="10">繰り返す部分の費用を下げる</text>
+<text class="ov-jp ov-c" x="853" y="692" font-size="13">トークン・コスト</text><text class="ov-en ov-c" x="853" y="705" font-size="10">Tokens &amp; cost</text><text class="ov-note ov-c" x="853" y="718" font-size="10">コンテキスト量に比例</text>
+<text class="ov-jp ov-c" x="1019" y="692" font-size="13">モデル設定</text><text class="ov-en ov-c" x="1019" y="705" font-size="10">Model config</text><text class="ov-note ov-c" x="1019" y="718" font-size="10">モデルと努力レベル</text>
+
+<!-- コンテキストウィンドウ -->
+<text class="ov-ttl" x="480" y="365" font-size="13">コンテキストウィンドウ<tspan class="ov-en" dx="6" font-size="10.5">Context window</tspan></text>
+<text class="ov-jp ov-c" x="579" y="409" font-size="12.5">システムプロンプト・ツール定義</text><text class="ov-en ov-c" x="579" y="425" font-size="10">System prompt &amp; tools</text>
+<text class="ov-jp ov-c" x="579" y="487" font-size="12.5">CLAUDE.md・ルール・自動メモリ</text><text class="ov-en ov-c" x="579" y="503" font-size="10">Memory</text>
+<text class="ov-jp ov-c" x="579" y="565" font-size="12.5">読み込まれたスキル</text><text class="ov-en ov-c" x="579" y="581" font-size="10">Loaded skills</text>
+<text class="ov-jp ov-c" x="579" y="620" font-size="12.5">会話・ファイル・コマンド出力</text><text class="ov-en ov-c" x="579" y="636" font-size="10">Conversation</text>
+
+<!-- エージェントループ -->
+<text class="ov-ttl" x="876" y="365" font-size="13">エージェントループ<tspan class="ov-en" dx="6" font-size="10.5">Agentic loop</tspan></text>
+<text class="ov-jp ov-c" x="968"  y="392" font-size="11">コンテキスト収集</text>
+<text class="ov-jp ov-c" x="1031" y="527" font-size="11">アクション実行</text>
+<text class="ov-jp ov-c" x="905"  y="527" font-size="11">結果の検証</text>
+<text class="ov-jp ov-c" x="968"  y="489" font-size="10.5">モデル</text>
+<text class="ov-jp" x="890" y="594" font-size="12.5">組み込みツール<tspan class="ov-en" dx="6" font-size="10">Built-in tools</tspan></text>
+<text class="ov-note" x="890" y="611" font-size="10">ファイル操作・検索・実行・ウェブ</text>
+<text class="ov-note" x="890" y="626" font-size="10">コードインテリジェンス（LSP）</text>
+
+<!-- 核の中の矢印ラベル -->
+<text class="ov-note ov-c" x="777" y="406" font-size="10.5">毎回まるごと送る</text>
+<text class="ov-note ov-c" x="777" y="617" font-size="10.5">結果が積み上がる</text>
+
+<!-- 左: メモリ・知識 -->
+<text class="ov-ttl" x="76" y="278" font-size="14">メモリ・知識<tspan class="ov-en" dx="6" font-size="11">Memory &amp; knowledge</tspan></text>
+<text class="ov-jp" x="118" y="318" font-size="14">CLAUDE.md・ルール<tspan class="ov-en" dx="6" font-size="10.5">Rules</tspan></text>
+<text class="ov-note" x="118" y="337" font-size="11">人が書く永続的な指示</text>
+<text class="ov-jp" x="118" y="380" font-size="14">自動メモリ<tspan class="ov-en" dx="6" font-size="10.5">Auto memory</tspan></text>
+<text class="ov-note" x="118" y="399" font-size="11">Claude が自分で書き残すメモ</text>
+<text class="ov-jp" x="118" y="442" font-size="14">スキル<tspan class="ov-en" dx="6" font-size="10.5">Skills</tspan></text>
+<text class="ov-note" x="118" y="461" font-size="11">知識と手順。必要なときに読み込む</text>
+
+<!-- 左: 状態 -->
+<text class="ov-ttl" x="76" y="540" font-size="14">状態<tspan class="ov-en" dx="6" font-size="11">State</tspan></text>
+<text class="ov-jp" x="118" y="580" font-size="14">セッション<tspan class="ov-en" dx="6" font-size="10.5">Sessions</tspan></text>
+<text class="ov-note" x="118" y="599" font-size="11">会話を保存し、再開・分岐する</text>
+<text class="ov-jp" x="118" y="642" font-size="14">チェックポイント<tspan class="ov-en" dx="6" font-size="10.5">Checkpoints</tspan></text>
+<text class="ov-note" x="118" y="661" font-size="11">編集前の状態に巻き戻す</text>
+
+<!-- 右: 並列・委任 -->
+<text class="ov-ttl" x="1232" y="278" font-size="14">並列・委任<tspan class="ov-en" dx="6" font-size="11">Orchestration</tspan></text>
+<text class="ov-jp" x="1274" y="318" font-size="14">サブエージェント<tspan class="ov-en" dx="6" font-size="10.5">Subagents</tspan></text>
+<text class="ov-note" x="1274" y="337" font-size="11">別コンテキストで動き、要約を返す</text>
+<text class="ov-jp" x="1274" y="380" font-size="14">エージェントチーム<tspan class="ov-en" dx="6" font-size="10.5">Teams</tspan></text>
+<text class="ov-note" x="1274" y="399" font-size="11">複数セッションが協調（実験的）</text>
+<text class="ov-jp" x="1274" y="442" font-size="14">ワークツリー<tspan class="ov-en" dx="6" font-size="10.5">Git worktrees</tspan></text>
+<text class="ov-note" x="1274" y="461" font-size="11">ブランチごとに並列で走らせる</text>
+
+<!-- 右: 拡張 -->
+<text class="ov-ttl" x="1232" y="540" font-size="14">拡張<tspan class="ov-en" dx="6" font-size="11">Extensions</tspan></text>
+<text class="ov-jp" x="1274" y="580" font-size="14">MCP サーバー<tspan class="ov-en" dx="6" font-size="10.5">MCP servers</tspan></text>
+<text class="ov-note" x="1274" y="599" font-size="11">外部サービスのツールとデータ</text>
+<text class="ov-jp" x="1274" y="642" font-size="14">プラグイン<tspan class="ov-en" dx="6" font-size="10.5">Plugins</tspan></text>
+<text class="ov-note" x="1274" y="661" font-size="11">拡張一式を束ねて配布する</text>
+
+<!-- 下段左: 実行環境 -->
+<text class="ov-ttl" x="76" y="804" font-size="14">実行環境<tspan class="ov-en" dx="6" font-size="11">Environments</tspan></text>
+<text class="ov-jp" x="118" y="840" font-size="14">ローカル<tspan class="ov-en" dx="6" font-size="10.5">Local</tspan></text>
+<text class="ov-note" x="118" y="859" font-size="11">自分のマシンで実行する</text>
+<text class="ov-jp" x="118" y="902" font-size="14">クラウド<tspan class="ov-en" dx="6" font-size="10.5">Cloud</tspan></text>
+<text class="ov-note" x="118" y="921" font-size="11">Anthropic 管理の VM で実行する</text>
+<text class="ov-jp" x="118" y="964" font-size="14">リモートコントロール<tspan class="ov-en" dx="6" font-size="10.5">Remote</tspan></text>
+<text class="ov-note" x="118" y="983" font-size="11">ローカルをブラウザから操作する</text>
+
+<!-- 下段中央: プラットフォーム -->
+<text class="ov-ttl" x="436" y="804" font-size="14">プラットフォーム<tspan class="ov-en" dx="6" font-size="11">Platform</tspan><tspan class="ov-note" dx="12" font-size="11">Claude Code はこの上に載る。上ほど Claude Code に近い</tspan></text>
+<text class="ov-jp ov-c" x="770" y="840" font-size="14">Claude Agent SDK</text><text class="ov-note ov-c" x="770" y="859" font-size="11">Claude Code と同じハーネスで、自分のエージェントを作る</text>
+<text class="ov-jp ov-c" x="770" y="902" font-size="14">Claude API<tspan class="ov-en" dx="8" font-size="10.5">Messages API</tspan></text><text class="ov-note ov-c" x="770" y="921" font-size="11">Amazon Bedrock・Google Cloud・Microsoft Foundry 経由でも使える</text>
+<text class="ov-jp ov-c" x="770" y="964" font-size="14">Claude モデル<tspan class="ov-en" dx="8" font-size="10.5">Claude models</tspan></text><text class="ov-note ov-c" x="770" y="983" font-size="11">Opus・Sonnet・Haiku。用途とコストで選ぶ</text>
+
+<!-- 下段右: 組織と運用 -->
+<text class="ov-ttl" x="1232" y="804" font-size="14">組織と運用<tspan class="ov-en" dx="6" font-size="11">Administration</tspan></text>
+<text class="ov-jp" x="1274" y="840" font-size="14">管理設定<tspan class="ov-en" dx="6" font-size="10.5">Managed settings</tspan></text>
+<text class="ov-note" x="1274" y="859" font-size="11">組織全体の方針を配布し強制する</text>
+<text class="ov-jp" x="1274" y="902" font-size="14">モニタリング<tspan class="ov-en" dx="6" font-size="10.5">Monitoring</tspan></text>
+<text class="ov-note" x="1274" y="921" font-size="11">OpenTelemetry で使用量を収集</text>
+<text class="ov-jp" x="1274" y="964" font-size="14">アナリティクス<tspan class="ov-en" dx="6" font-size="10.5">Analytics</tspan></text>
+<text class="ov-note" x="1274" y="983" font-size="11">チームの利用状況を可視化する</text>
+
+<!-- 最下段: 拡張を役割で見分ける -->
+<text class="ov-ttl" x="76" y="1074" font-size="14">拡張の見分け方<tspan class="ov-en" dx="6" font-size="11">Extensions by role</tspan><tspan class="ov-note" dx="12" font-size="11">似て見える要素を「ループに何を足すか」で分ける</tspan></text>
+
+<text class="ov-ttl" x="88" y="1110" font-size="13">指示・知識<tspan class="ov-en" dx="6" font-size="10.5">Instructions</tspan></text>
+<text class="ov-note" x="88" y="1126" font-size="10.5">Claude が読んで解釈する。強制ではない</text>
+<text class="ov-jp" x="88" y="1148" font-size="11.5">CLAUDE.md・ルール<tspan class="ov-note" dx="6" font-size="10.5">毎セッション読み込む</tspan></text>
+<text class="ov-jp" x="88" y="1166" font-size="11.5">スキル<tspan class="ov-note" dx="6" font-size="10.5">呼び出されたときだけ読み込む</tspan></text>
+<text class="ov-jp" x="88" y="1184" font-size="11.5">自動メモリ<tspan class="ov-note" dx="6" font-size="10.5">Claude が書き、毎セッション読み込む</tspan></text>
+
+<text class="ov-ttl" x="437" y="1110" font-size="13">ツール<tspan class="ov-en" dx="6" font-size="10.5">Tools</tspan></text>
+<text class="ov-note" x="437" y="1126" font-size="10.5">Claude が選んで呼び出し、結果がループに戻る</text>
+<text class="ov-jp" x="437" y="1148" font-size="11.5">組み込みツール<tspan class="ov-note" dx="6" font-size="10.5">最初から使える</tspan></text>
+<text class="ov-jp" x="437" y="1166" font-size="11.5">MCP ツール<tspan class="ov-note" dx="6" font-size="10.5">MCP サーバーが追加する</tspan></text>
+<text class="ov-jp" x="437" y="1184" font-size="11.5">カスタムツール<tspan class="ov-note" dx="6" font-size="10.5">Agent SDK で自作する</tspan></text>
+
+<text class="ov-ttl" x="786" y="1110" font-size="13">自動化<tspan class="ov-en" dx="6" font-size="10.5">Automation</tspan></text>
+<text class="ov-note" x="786" y="1126" font-size="10.5">Claude の判断によらず、必ず実行される</text>
+<text class="ov-jp" x="786" y="1148" font-size="11.5">フック<tspan class="ov-note" dx="6" font-size="10.5">ツール実行の前後などのイベントで走る</tspan></text>
+<text class="ov-note" x="786" y="1166" font-size="10.5">ガードレールとして強制したいことはここに置く</text>
+<text class="ov-note" x="786" y="1184" font-size="10.5">指示（CLAUDE.md・スキル）は「お願い」、フックは「保証」</text>
+
+<text class="ov-ttl" x="1135" y="1110" font-size="13">配布<tspan class="ov-en" dx="6" font-size="10.5">Packaging</tspan></text>
+<text class="ov-note" x="1135" y="1126" font-size="10.5">左の 3 種とサブエージェントを束ねて共有する</text>
+<text class="ov-jp" x="1135" y="1148" font-size="11.5">プラグイン<tspan class="ov-note" dx="6" font-size="10.5">スキル・フック・サブエージェント・MCP を 1 つに</tspan></text>
+<text class="ov-jp" x="1135" y="1166" font-size="11.5">マーケットプレイス<tspan class="ov-note" dx="6" font-size="10.5">プラグインを配る場所</tspan></text>
+</svg>
+<!-- OVERVIEW:END -->
+  <figcaption>Claude Code の全体像。中央の核（ハーネス）を、記憶・状態・並列・拡張・実行環境・プラットフォーム・組織の群が取り囲む。各章はこの図のどこかを扱う。</figcaption>
 </figure>
 
-<!-- INDEX:START -->
-<ol class="index-grid">
-  <li><a class="index-card" href="ch00-about.html"><span class="n">CHAPTER 00</span><h2>この資料について</h2><p>何を主軸にし、何を周辺に置き、何を載せないか。読む前に、この資料の立場と情報ソースの扱いを先に示します。</p><span class="count">2 sections</span></a></li>
-  <li><a class="index-card" href="ch01-what-is-claude-code.html"><span class="n">CHAPTER 01</span><h2>Claude Code とは</h2><p>Claude Code は、LLM にツールを持たせ、ループで回すプログラムです。図を 1 枚示し、どの章がその図のどこを扱うかを地図として渡します。</p><span class="count">1 sections</span></a></li>
-  <li><a class="index-card" href="ch02-basics-and-interface.html"><span class="n">CHAPTER 02</span><h2>基本操作とインターフェース</h2><p>CLI フラグ、スラッシュコマンド、キーボード操作、権限モード。日々の生産性はこの層の習熟でほぼ決まります。動作環境・インストール・用途別の手段もこの章に置きます。</p><span class="count">8 sections</span></a></li>
-  <li><a class="index-card" href="ch03-core-mechanisms.html"><span class="n">CHAPTER 03</span><h2>コアメカニズム</h2><p>Claude Code を「なんとなく賢いツール」から「挙動が予測できる道具」に変えるのが、この章です。 agentic ループ・モデル・ツール・コンテキストウィンドウ・セッションの 5 つが土台になります。</p><span class="count">10 sections</span></a></li>
-  <li><a class="index-card" href="ch04-memory-and-instructions.html"><span class="n">CHAPTER 04</span><h2>記憶と指示</h2><p>セッションをまたいで知識を保持する仕組みは 2 系統あります。あなたが書く CLAUDE.md と、 Claude が自分で書く自動メモリです。どちらも「強制設定」ではなく「コンテキスト」である点が肝心です。</p><span class="count">7 sections</span></a></li>
-  <li><a class="index-card" href="ch05-best-practices.html"><span class="n">CHAPTER 05</span><h2>ベストプラクティス</h2><p>公式の ベストプラクティス（旧 Anthropic Engineering の記事が統合されたページ）を、 「環境づくり」「対話」「セッション管理」「スケール」「失敗パターン」の 5 つに整理します。</p><span class="count">6 sections</span></a></li>
-  <li><a class="index-card" href="ch06-progress-and-visibility.html"><span class="n">CHAPTER 06</span><h2>進行状況の可視化</h2><p>エージェントに任せる時間が長くなるほど、「今どこにいるのか」が見えないことが最大のストレスになります。Claude Code は、着手前の計画・実行中のチェックリスト・並列作業の進捗・資源の消費を、それぞれ別の仕組みで可</p><span class="count">8 sections</span></a></li>
-  <li><a class="index-card" href="ch07-cost-and-monitoring.html"><span class="n">CHAPTER 07</span><h2>コストと運用監視</h2><p>トークンは有限で有料です。「速く動かす」ことと「安く動かす」ことは、多くの場合同じ施策——コンテキスト管理に帰着します。</p><span class="count">8 sections</span></a></li>
-  <li><a class="index-card" href="ch08-glossary.html"><span class="n">CHAPTER 08</span><h2>用語集</h2><p>公式用語集（Glossary）から、本資料に登場する主要用語を抜粋・整理しました。</p><span class="count">3 sections</span></a></li>
-  <li><a class="index-card" href="ch09-extension-overview.html"><span class="n">CHAPTER 09</span><h2>拡張レイヤーの全体像</h2><p>Skills、Subagents、Hooks、MCP、Plugins。名前が似ていて混同しやすいので、 「いつ読み込まれるか」「誰が実行するか」という軸で整理します。ここが本資料の中核です。</p><span class="count">7 sections</span></a></li>
-  <li><a class="index-card" href="ch10-skills.html"><span class="n">CHAPTER 10</span><h2>Skills（スキル）</h2><p>スキルは最も柔軟な拡張手段です。実体は SKILL.md という Markdown ファイル 1 枚。 Claude が自動で読み込むことも、/名前 であなたが呼び出すこともできます。</p><span class="count">8 sections</span></a></li>
-  <li><a class="index-card" href="ch11-subagents.html"><span class="n">CHAPTER 11</span><h2>Subagents と並列実行</h2><p>コンテキストは有限資源です。サブエージェントは別のコンテキストウィンドウで働き、要約だけを返すことで、 メインの会話を汚さずに調査・検証・並列作業を可能にします。</p><span class="count">6 sections</span></a></li>
-  <li><a class="index-card" href="ch12-hooks.html"><span class="n">CHAPTER 12</span><h2>Hooks（フック）</h2><p>フックは Claude Code のライフサイクル上の特定イベントで必ず実行される仕組みです。 「お願い」ではなく「強制」。フォーマット、監査、ブロック、通知はここに置きます。</p><span class="count">6 sections</span></a></li>
-  <li><a class="index-card" href="ch13-mcp.html"><span class="n">CHAPTER 13</span><h2>MCP（Model Context Protocol）</h2><p>MCP は AI ツールを外部データソースに接続するためのオープン標準です。 これにより Claude Code は、DB のクエリ、Jira の更新、Slack からのデータ取得、ブラウザ操作などを行えます。</p><span class="count">5 sections</span></a></li>
-  <li><a class="index-card" href="ch14-plugins.html"><span class="n">CHAPTER 14</span><h2>Plugins とマーケットプレイス</h2><p>プラグインは「配布のための箱」です。スキル・サブエージェント・フック・MCP サーバーを 1 つのインストール単位にまとめます。</p><span class="count">4 sections</span></a></li>
-  <li><a class="index-card" href="ch15-settings-and-security.html"><span class="n">CHAPTER 15</span><h2>設定・権限・セキュリティ</h2><p>個人利用なら既定のままでも動きますが、チーム・組織で使うならこの章が本番です。 設定の階層、権限ルール、サンドボックス、企業向けデプロイまでを押さえます。</p><span class="count">9 sections</span></a></li>
-  <li><a class="index-card" href="ch16-automation-and-sdk.html"><span class="n">CHAPTER 16</span><h2>自動化・CI/CD・Agent SDK</h2><p>対話の外へ出すと Claude Code は「開発者の道具」から「パイプラインの部品」になります。</p><span class="count">5 sections</span></a></li>
-  <li><a class="index-card" href="ch17-learning-roadmap.html"><span class="n">CHAPTER 17</span><h2>学習ロードマップ</h2><p>「どの順番で身につけるか」。各ステップに到達目標（できるようになること）を置いています。</p><span class="count">5 sections</span></a></li>
-  <li><a class="index-card" href="ch18-sources.html"><span class="n">CHAPTER 18</span><h2>情報ソース一覧</h2><p>本資料の根拠と、継続学習のための情報源。公式／準公式／コミュニティを明確に区別して掲載します。</p><span class="count">4 sections</span></a></li>
-</ol>
-<!-- INDEX:END -->
-
-<footer>
-  <p>
-    <strong>Claude Code 体系的入門</strong> — 2026-08-23 作成。
-    記述内容は <a href="https://code.claude.com/docs/ja/overview">Claude Code 公式ドキュメント（日本語版）</a> を基本とし、<strong>日本語版が英語版より古い箇所は <a href="https://code.claude.com/docs/en/overview">英語版</a> に従っています</strong>。
-    製品の更新に伴い仕様が変わる場合があります。実装前に該当ページで最新情報をご確認ください。
-  </p>
-  <p>本資料は学習用にまとめた非公式の整理資料であり、Anthropic による公式配布物ではありません。</p>
-</footer>
+<ol class="index-grid" data-index></ol>
 
 </main>
 </div>
 
-<script src="assets/nav.js?v=770a1e25"></script>
+<script src="assets/toc.js"></script>
+<script src="assets/nav.js"></script>
 </body>
 </html>

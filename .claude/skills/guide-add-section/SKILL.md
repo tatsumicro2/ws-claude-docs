@@ -1,6 +1,6 @@
 ---
 name: guide-add-section
-description: claude-code-guide に節を追加するときの手順。「N 章に節を足したい」「〜の節を新設して」と言われたときに使う。article の書式、toc.json への追記、番号の付け替え、check_docs.py が要求する規則をまとめてある。
+description: claude-code-guide に節を追加するときの手順。「N 章に節を足したい」「〜の節を新設して」と言われたときに使う。article の書式、番号の付け替え、check_docs.py が要求する規則をまとめてある。
 ---
 
 # 節を追加する手順
@@ -34,17 +34,18 @@ check_docs.py が落ちる書き方：
 
 書き方の方針（CLAUDE.md より）：
 
+- 6 章の主題（概要と操作／スキル・プロンプト・ルール／ループとハーネス／セッション／ガードレール／コンテキストとコスト）に入らない内容は足さない。サブエージェント・MCP・プラグイン・CI/CD・SDK は範囲外
 - 出典は公式ドキュメント。日本語版が英語版より古い箇所は英語版に従い、その旨を注記する
 - バージョン依存の記述には `v2.1.x 以降` のように条件を添える
 - 表で順序のある軸を扱うときは、上ほど高い／強い／深い
 - 「試してみる」ブロックでは、シェルコマンドとセッション内コマンドを混ぜない
 - 数値は手元で実測できるものだけ書く。推測で置かない
 
-## 3. toc.json に追記する
+## 3. 目次は自動で拾われる
 
-該当章の `sections` の**同じ位置**に `{"id": "sN-M", "title": "節タイトル"}` を足す。
-toc.json の並びと実ページの並びが一致していないと check_docs.py が落ちる。
+章・節の構成は章ファイルが唯一のソース。別ファイルへの追記は不要で、
+`build_toc.py` が `data-slide-title` から目次 `assets/toc.js` を作り直す。他の章ファイルには触らない。
 
 ## 4. 仕上げる
 
-`/guide-check` を実行する（build_nav.py → check_docs.py → build_single.py）。
+`/guide-check` を実行する（build_toc.py → check_docs.py → build_single.py）。

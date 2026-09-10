@@ -17,10 +17,10 @@
 
 ## 手元で確認したこと
 
-- [ ] `python3 claude-code-guide/tools/build_nav.py` を実行した
+- [ ] `python3 claude-code-guide/tools/build_toc.py` を実行した
 - [ ] `python3 claude-code-guide/tools/check_docs.py` が `OK` を返す
 - [ ] 本文を変えた場合、`python3 claude-code-guide/tools/build_single.py` で `claude-code-guide/dist/claude-code-guide.html` を更新した
-- [ ] 節を足した／改題した場合、`claude-code-guide/toc.json` も更新した
+- [ ] 節を足した／改題した場合、節 id が `sN-1` `sN-2` … の連番になっている
 - [ ] `claude-code-overview/claude-code-overview.html` を触った場合、`python3 claude-code-overview/export.py` で SVG と PNG を書き出し直した
 - [ ] ブラウザで表示を確認した
 - [ ] Claude Code に書かせた箇所は自分で読み、出典の URL を開いて確かめた

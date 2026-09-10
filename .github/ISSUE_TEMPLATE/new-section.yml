@@ -1,5 +1,5 @@
 name: 節・章の追加提案
-description: 資料に無い事柄を足す提案。先に claude-code-guide/TODO.md に同じ項目が無いか確認する
+description: 資料に無い事柄を足す提案。先に claude-code-guide/_todo/README.md の「追加コンテンツの候補」に同じ項目が無いか確認する
 labels: ["content", "proposal"]
 body:
   - type: input
@@ -29,5 +29,5 @@ body:
     attributes:
       label: 確認したこと
       options:
-        - label: claude-code-guide/TODO.md に同じ項目が無い
+        - label: claude-code-guide/_todo/README.md の候補一覧に同じ項目が無い
         - label: 公式ドキュメント（または Anthropic Engineering ブログ）に記載がある

@@ -12,14 +12,14 @@
 }
 .sidebar-brand{
   display:block; text-decoration:none; color:var(--text);
-  font-family:var(--font-serif); font-size:1rem; line-height:1.35; font-weight:600;
+  font-family:var(--font-sans); font-size:1rem; line-height:1.35; font-weight:700;
   padding:.2rem .4rem .9rem; margin:0 0 .9rem; border-bottom:1px solid var(--line);
 }
 .sidebar-brand em{display:block; font-style:normal; color:var(--accent); font-size:.9rem}
 .sidebar-brand:hover{color:var(--accent)}
 
 .sidebar-label{
-  font-family:var(--font-mono); font-size:.66rem; letter-spacing:.2em; text-transform:uppercase;
+  font-family:var(--font-mono); font-size:var(--fs-xs); letter-spacing:.2em; text-transform:uppercase;
   color:var(--muted); margin:0 0 .6rem .4rem; font-weight:600;
 }
 
@@ -33,11 +33,11 @@
   flex:1 1 auto; min-width:0;
   display:flex; gap:.5rem; align-items:baseline;
   padding:.34rem .4rem; text-decoration:none;
-  color:var(--text-soft); font-size:.86rem; line-height:1.4; border-radius:var(--radius-s);
+  color:var(--text-soft); font-size:var(--fs-sm); line-height:1.4; border-radius:var(--radius-s);
 }
 .toc-ch-link:hover{color:var(--accent)}
 .toc-num{
-  font-family:var(--font-mono); font-size:.66rem; color:var(--muted);
+  font-family:var(--font-mono); font-size:var(--fs-xs); color:var(--muted);
   flex:none; width:1.4em; text-align:right;
 }
 .toc-ch-row.is-current{background:var(--accent-bg)}
@@ -61,14 +61,14 @@
 }
 .toc-sections a{
   display:block; padding:.25rem .45rem; text-decoration:none;
-  color:var(--muted); font-size:.79rem; line-height:1.4; border-radius:var(--radius-s);
+  color:var(--muted); font-size:var(--fs-sm); line-height:1.4; border-radius:var(--radius-s);
 }
 .toc-sections a:hover{background:var(--accent-bg); color:var(--accent)}
 .toc-sections a.is-active{color:var(--accent); background:var(--accent-bg); font-weight:600}
 
 /* ---------- パンくず ---------- */
 .crumb{
-  font-family:var(--font-mono); font-size:.72rem; color:var(--muted);
+  font-family:var(--font-mono); font-size:var(--fs-xs); color:var(--muted);
   padding:1.6rem 0 .4rem; letter-spacing:.03em;
 }
 .crumb a{color:var(--muted); text-decoration:none}
@@ -88,18 +88,24 @@
 }
 .pager a:hover{border-color:var(--accent); background:var(--accent-bg)}
 .pager .dir{
-  display:block; font-family:var(--font-mono); font-size:.66rem; letter-spacing:.18em;
+  display:block; font-family:var(--font-mono); font-size:var(--fs-xs); letter-spacing:.18em;
   text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;
 }
-.pager .name{display:block; font-size:.92rem; line-height:1.4; font-weight:600}
+.pager .name{display:block; font-size:var(--fs-md); line-height:1.4; font-weight:600}
 .pager .next{grid-column:2; text-align:right}
 .pager .prev{grid-column:1}
 
 /* ---------- トップページ：章インデックス ---------- */
 .index-grid{
-  list-style:none; margin:2.5rem 0 0; padding:0;
-  display:grid; gap:1rem; grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  list-style:none; margin:2.5rem 0 0; padding:0; max-width:var(--measure-wide);
+  display:grid; gap:1rem; grid-template-columns:repeat(3,minmax(0,1fr));
 }
+@media (max-width:1100px){ .index-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:640px){ .index-grid{grid-template-columns:1fr} }
+
+/* トップページの概要図（claude-code-overview から build_nav.py が差し込む） */
+.overview-figure{padding:.9rem .9rem .8rem; max-width:var(--measure-wide)}
+.overview-figure svg{max-width:none}
 .index-card{
   display:flex; flex-direction:column; height:100%;
   padding:1.2rem 1.3rem 1.1rem; text-decoration:none;
@@ -109,15 +115,15 @@
 }
 .index-card:hover{border-color:var(--accent); transform:translateY(-2px)}
 .index-card .n{
-  font-family:var(--font-mono); font-size:.72rem; font-weight:700; color:var(--accent);
+  font-family:var(--font-mono); font-size:var(--fs-xs); font-weight:700; color:var(--accent);
   letter-spacing:.05em; margin:0 0 .5rem;
 }
 .index-card h2{
-  font-family:var(--font-serif); font-size:1.08rem; line-height:1.4; margin:0 0 .5rem; font-weight:600;
+  font-family:var(--font-sans); font-size:1.08rem; line-height:1.4; margin:0 0 .5rem; font-weight:700;
 }
-.index-card p{font-size:.82rem; line-height:1.6; color:var(--text-soft); margin:0 0 .8rem}
+.index-card p{font-size:var(--fs-sm); line-height:1.6; color:var(--text-soft); margin:0 0 .8rem}
 .index-card .count{
-  margin-top:auto; font-family:var(--font-mono); font-size:.68rem; color:var(--muted);
+  margin-top:auto; font-family:var(--font-mono); font-size:var(--fs-xs); color:var(--muted);
   letter-spacing:.05em;
 }
 
@@ -139,7 +145,7 @@
 /* ---------- 1ページ1章に伴う見出しレベルの調整 ---------- */
 /* 章見出しは h2 → h1 に昇格。元の .chapter h2 と同一の見た目を維持する */
 .chapter h1{
-  font-family:var(--font-serif); font-size:clamp(1.6rem,3.2vw,2.3rem);
+  font-family:var(--font-sans); font-size:clamp(1.6rem,3.2vw,2.3rem); font-weight:700;
   margin:0; font-weight:600; line-height:1.25;
 }
 .chapter{margin:0 0 2rem}

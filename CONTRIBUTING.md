@@ -44,9 +44,9 @@ main から枝を切る → 編集 → 手元で検証 → PR → CI とレビ�
 
 | 変えたもの | 実行するもの |
 |---|---|
-| 章 HTML・toc.json | `python3 claude-code-guide/tools/build_nav.py` → `python3 claude-code-guide/tools/check_docs.py` → `python3 claude-code-guide/tools/build_single.py` |
-| assets/*.css, *.js | `python3 claude-code-guide/tools/build_nav.py`（`?v=` ハッシュが変わる）→ `build_single.py` |
-| claude-code-overview/claude-code-overview.html | `python3 claude-code-overview/export.py`（PNG の書き出しに Google Chrome が必要） |
+| 章 HTML | `python3 claude-code-guide/tools/build_toc.py` → `check_docs.py` → `build_single.py` |
+| site.json, assets/*.css, *.js | `build_toc.py` → `build_single.py` |
+| claude-code-overview/claude-code-overview.html | `python3 claude-code-overview/export.py`（PNG の書き出しに Google Chrome が必要）→ `build_toc.py` と `build_single.py`（表紙の概要図も更新される） |
 | claude-code-guide/tools/*.py | 上の全部を回して差分が出ないこと |
 
 CI は「生成物が最新か」と「check_docs.py が通るか」を検査する。手元で回さずに push すると赤くなる。
@@ -57,9 +57,13 @@ CI は「生成物が最新か」と「check_docs.py が通るか」を検査す
 
 | 生成物 | 元ファイル | 生成コマンド |
 |---|---|---|
-| 各章 HTML の `<!-- NAV -->` `<!-- PAGER -->` `<!-- INDEX -->` 区間 | `toc.json` | `claude-code-guide/tools/build_nav.py` |
+| `claude-code-guide/assets/toc.js`（目次データ） | 各 `chNN-*.html` と `site.json` | `claude-code-guide/tools/build_toc.py` |
+| `index.html` の `<!-- OVERVIEW -->` 区間（概要図） | `claude-code-overview/claude-code-overview.html` | `claude-code-guide/tools/build_toc.py` |
 | `claude-code-guide/dist/claude-code-guide.html` | `claude-code-guide/*.html` | `claude-code-guide/tools/build_single.py` |
 | `claude-code-overview/dist/claude-code-overview.svg` `.png` | `claude-code-overview/claude-code-overview.html` | `claude-code-overview/export.py` |
+
+章ページは 1 章 1 ファイルで完結していて、目次・ページャ・フッターは表示時に `nav.js` が描きます。
+**別々の章を同時に編集しても元ファイルは衝突しません。** 衝突するのは生成物だけです。
 
 ### 衝突したとき
 
@@ -67,9 +71,9 @@ CI は「生成物が最新か」と「check_docs.py が通るか」を検査す
 
 ```bash
 git merge main                                   # 衝突が出る
-git checkout --theirs claude-code-guide/dist/claude-code-guide.html   # 生成物はどちらでもよい（後で作り直す）
-# 元ファイル（chNN-*.html や toc.json）の衝突は手で解決する
-python3 claude-code-guide/tools/build_nav.py && python3 claude-code-guide/tools/check_docs.py && python3 claude-code-guide/tools/build_single.py
+git checkout --theirs claude-code-guide/assets/toc.js claude-code-guide/dist/claude-code-guide.html   # 生成物はどちらでもよい（後で作り直す）
+# 元ファイル（chNN-*.html）の衝突は手で解決する。別々の章を触っていれば起きない
+python3 claude-code-guide/tools/build_toc.py && python3 claude-code-guide/tools/check_docs.py && python3 claude-code-guide/tools/build_single.py
 git add -A && git commit
 ```
 
@@ -83,7 +87,7 @@ git add -A && git commit
 - **表。** 順序のある軸は上ほど高い／強い／深いか
 - **「試してみる」。** シェルコマンドとセッション内コマンドが混在していないか
 - **持ち帰り。** 章を足したら「この章の持ち帰り」節があるか
-- **表示。** ブラウザで開いて崩れていないか（レビュアーも手元で開く）
+- **表示。** ブラウザで開いて崩れていないか（レビュアーも手元で開く）。色・文字サイズ・幅を HTML に直書きしていないか（[STYLE.md](claude-code-guide/STYLE.md)）
 
 ## Claude Code で作業する
 
@@ -95,8 +99,8 @@ git add -A && git commit
 | `CLAUDE.md` | 毎セッション読み込まれる規約。**守らないと壊れること**だけを書く。増やすときは相談する |
 | `.claude/settings.json` | 共有の権限（claude-code-guide/tools/*.py・claude-code-overview/export.py と git の読み取り系を確認なしで実行可）とフック。`git push --force` は拒否 |
 | `.claude/hooks/` | 章 HTML を編集した直後と作業終了時に `check_docs.py` を回し、失敗なら Claude に指摘を返して直させる |
-| `.claude/skills/guide-check` | `/guide-check` — build_nav → check_docs → build_single の仕上げ手順 |
-| `.claude/skills/guide-add-section` | `/guide-add-section` — 節を追加する手順（書式・toc.json・番号付け替え） |
+| `.claude/skills/guide-check` | `/guide-check` — build_toc → check_docs → build_single の仕上げ手順 |
+| `.claude/skills/guide-add-section` | `/guide-add-section` — 節を追加する手順（書式・番号付け替え） |
 | `.claude/agents/guide-reviewer` | 章を公式ドキュメント英語版と突き合わせ、`claude-code-guide/_todo/review-*.md` にレビューノートを書く。本文は変えない |
 
 個人の設定（追加の許可、個人用フックなど）は `.claude/settings.local.json` に書く。gitignore 済み。
@@ -110,14 +114,14 @@ git add -A && git commit
 
 ### してはいけないこと
 
-- `<!-- NAV:START -->` などの自動生成区間を Claude に直接編集させる（`build_nav.py` で上書きされる）
-- `toc.json` を手で書き換えて章の並びを変える（`claude-code-guide/tools/reorder_chapters.py` を使う）
-- `claude-code-guide/_source/index.html` を更新する（分解前の原本。比較の基準）
+- `assets/toc.js` や `index.html` の `<!-- OVERVIEW -->` 区間を Claude に直接編集させる（`build_toc.py` で上書きされる）
+- 章ページに目次・ページャ・フッターを手で埋め込む（他章との結合が戻る）
+- 章番号を手で付け替える（`claude-code-guide/tools/renumber_chapter.py` を使う）
 
 ## Issue と作業メモ
 
 - 記述の誤りや追加提案は Issue テンプレートから出す（「記述の誤り・古い記述」「節・章の追加提案」）
-- 追加コンテンツの候補一覧は [claude-code-guide/TODO.md](claude-code-guide/TODO.md) に集約する
+- 追加コンテンツの候補一覧は [claude-code-guide/_todo/README.md](claude-code-guide/_todo/README.md) に集約する
 - レビュー結果・計画・旧版は [`claude-code-guide/_todo/`](claude-code-guide/_todo/) に置く（命名規則はそこの README）
 
 ## 管理者向け：初回セットアップ

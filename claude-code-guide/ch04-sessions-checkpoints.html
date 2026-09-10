@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>セッションとチェックポイント — Claude Code 体系的入門</title>
+<meta name="description" content="コンテキストウィンドウは有限で、セッションを閉じれば消えます。会話を保存・再開・分岐する仕組みと、プロンプト単位で巻き戻せるチェックポイントの範囲を知ると、任せられる作業の大きさが変わります。">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/nav.css">
+</head>
+<body>
+<div class="wrap">
+
+<main>
+
+<nav class="crumb"><a href="index.html">Claude Code 体系的入門</a><span>/</span>第4章</nav>
+
+<section class="chapter" id="ch4" data-chapter="4">
+  <div class="chapter-head">
+    <span class="chapter-num">04</span>
+    <h1>セッションとチェックポイント</h1>
+  </div>
+  <p class="chapter-lede">
+    セッションの状態は<strong>コンテキストウィンドウの中身だけ</strong>で、閉じれば消えます。それを保存・再開・分岐する仕組みがセッション、ターン単位で作業状態を戻す仕組みがチェックポイントです。どこまで戻せて、どこから戻せないかを知ると、任せられる作業の大きさが変わります。
+  </p>
+
+  <div class="note">
+    <span class="label">原理との対応</span>
+    <p>この章は図 1-1 の<strong>長期メモリ</strong>のうち「会話そのもの」を保存する部分と、<strong>ガードレール</strong>のうち「戻す」部分の実装です。根拠は <a href="ch03-agent-loop-harness.html#p-context">3-6 コンテキスト</a>（中身は JSONL としてディスクにあり、「覚えている」の正体はそれを読み直していること）と <a href="ch03-agent-loop-harness.html#p-control">3-6 ガードレール</a>（巻き戻せるのはハーネスが自分で触ったものだけ）、そして <a href="ch03-agent-loop-harness.html#p-memory">3-6 メモリ</a> の「捨てる」「分ける」です。廃れないのは「セッションは互いに独立で、橋渡しは永続化だけ」「戻せるのはハーネスが触った範囲だけ」の 2 つで、保存件数・保持日数・コマンド名は変わります。</p>
+  </div>
+
+  <article class="slide" id="s4-1" data-slide="4-1" data-slide-title="セッションの保存・再開・分岐">
+    <h3>4-1. セッションの保存・再開・分岐</h3>
+    <p>セッションは<strong>ディレクトリに紐づく 1 つの会話</strong>です。会話は 1 行 1 イベントの JSONL として <code>~/.claude/projects/</code> に保存され、再開するときはこれを読み直してコンテキストを組み立て直します。新しいセッションは常に空のコンテキストで始まり、前のセッションから引き継がれるのは CLAUDE.md と自動メモリ（<a href="ch02-skills-prompts-rules.html">2 章</a>）だけです。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>したいこと</th><th>操作</th><th>挙動・制約</th></tr></thead>
+        <tbody>
+          <tr><td>直前のセッションを続ける</td><td><code>claude --continue</code></td><td>このディレクトリの最新セッションを再開</td></tr>
+          <tr><td>過去のセッションを選んで続ける</td><td><code>claude --resume</code> / セッション内で <code>/resume</code></td><td>一覧から選択。<code>--from-pr</code> で PR に紐づくセッションを指定できる</td></tr>
+          <tr><td>名前を付けて見つけやすくする</td><td><code>/rename &lt;名前&gt;</code> / <code>claude --name</code></td><td>複数の作業を並行するときに一覧で見分けられる</td></tr>
+          <tr><td>分岐して別の案を試す</td><td><code>/branch</code> / <code>claude --fork-session</code></td><td>履歴を複製し、別 ID の会話として分岐。元のセッションは変わらない</td></tr>
+          <tr><td>会話を書き出す</td><td><code>/export</code></td><td>トランスクリプトをファイルに保存</td></tr>
+          <tr><td>会話を要約して確認する</td><td><code>/recap</code></td><td>再開直後に「どこまでやったか」を短く出す</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="label">再開の 2 択（Pro / Max）</span>
+      <p>約 1 時間以上放置した 10 万トークン超のセッションを再開すると選択ダイアログが出ます。<strong>「要約から再開」</strong>は即座に <code>/compact</code> 相当を行って以降を軽くする代わりに詳細が落ち、<strong>「そのまま再開」</strong>は全履歴を再処理・再キャッシュします。長い中断の後はプロンプトキャッシュが切れているため、どちらでも最初の 1 ターンが最も高くつきます（<a href="ch06-context-cost-caching.html#s6-3">6-3</a>）。</p>
+    </div>
+    <div class="try">
+      <span class="label">試してみる：再開と名前付け</span>
+      <p>ターミナルで直前のセッションを再開し：</p>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="claude --continue">claude --continue</span></code></pre></div>
+      <p>開いたセッションの中で：</p>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="/rename oauth-work">/rename oauth-work    # セッションに名前を付ける</span><span class="cmd" data-copy="/recap">/recap                # ここまでの要約を出す</span></code></pre></div>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/sessions">セッションを管理する</a> / <a href="https://code.claude.com/docs/ja/claude-directory">.claude ディレクトリを探索する</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s4-2" data-slide="4-2" data-slide-title="チェックポイントと巻き戻し">
+    <h3>4-2. チェックポイントと巻き戻し</h3>
+    <p>チェックポイントは、<strong>プロンプトを送るたび</strong>に直前のコード状態を自動保存する仕組みです。復元の単位はターン（<a href="ch03-agent-loop-harness.html#s3-1">3-1</a>）で、git とは別物です。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>項目</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr><td>開く</td><td><code>/rewind</code>、または<strong>入力欄が空の状態で</strong> <code>Esc</code> 2 回（文字が残っていると入力のクリアになる）</td></tr>
+          <tr><td>戻せるもの</td><td>「会話だけ」「コードだけ」「両方」を選べる。会話だけ戻して別の指示をやり直す、という使い方が多い</td></tr>
+          <tr><td>保持</td><td>直近 100 件。セッション終了 30 日後に自動削除</td></tr>
+          <tr><td>コスト</td><td><code>/rewind</code> はプロンプトキャッシュを壊さない（<a href="ch06-context-cost-caching.html#s6-3">6-3</a>）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note warn">
+      <span class="label">重要な限界 — git の代わりにはならない</span>
+      <p>追跡されるのは<strong>メイン会話がファイル編集ツール（Edit / Write）で行った変更だけ</strong>です。次のものは巻き戻せません。</p>
+      <ul>
+        <li><strong>Bash コマンドや外部プロセスによる変更</strong>（<code>sed -i</code>、<code>npm install</code>、生成スクリプトなど）</li>
+        <li><strong>サブエージェントの編集</strong>。バックグラウンドで走るフォークスキルや <code>/code-review --fix</code> も同様</li>
+        <li><strong>DB・API・デプロイなど外部の副作用</strong>。だからこそ実行前に確認が入る（<a href="ch05-guardrails.html">5 章</a>）</li>
+        <li>シンボリックリンク・ハードリンクのパス（<code>Restored the code, but skipped N files</code> の警告が出る）</li>
+      </ul>
+      <p>「<code>/rewind</code> があるから大丈夫」という前提で作業を任せるのが、最も危ない誤解です。戻したい状態は git でコミットしておきます。</p>
+    </div>
+    <div class="try">
+      <span class="label">試してみる：巻き戻す</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="/rewind">/rewind               # 会話・コードを巻き戻す（Esc 2 回でも可）</span></code></pre></div>
+      <p>「会話だけ」を選び、同じ状態から別の指示を出し直してみてください。コードはそのまま、やり取りだけが戻ります。</p>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/checkpointing">チェックポイント</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s4-3" data-slide="4-3" data-slide-title="セッションを区切る・並列にする">
+    <h3>4-3. セッションを区切る・並列にする</h3>
+    <h4>区切る</h4>
+    <p>原則はひとつ、<strong>同じ問題で 2 回修正したらコンテキストは汚れている</strong>。失敗案が積み上がったコンテキストは、そのまま続けても精度が上がりません。<code>/clear</code> して、学んだことを織り込んだプロンプトで再スタートします。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>操作</th><th>何が起きるか</th><th>使いどころ</th></tr></thead>
+        <tbody>
+          <tr><td><code>/clear</code></td><td>コンテキストを空にする。要約を生成しないので<strong>実質コスト 0</strong>。CLAUDE.md と自動メモリは次のターンで読み直される</td><td>タスクの切れ目、無関係な話題に移るとき、2 回失敗したとき</td></tr>
+          <tr><td><code>/compact &lt;focus&gt;</code></td><td>会話を要約に置き換える。損失がある。<code>focus</code> で残したいことを指示できる</td><td>継続が必要で、コンテキストが埋まりかけているとき（詳細は <a href="ch06-context-cost-caching.html#s6-6">6-6</a>）</td></tr>
+          <tr><td><code>/rename</code> → 新セッション</td><td>今の会話に名前を付けて残し、別セッションを開く</td><td>戻ってくる予定があるとき</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>大きめの機能は、Claude にインタビューさせて仕様を <code>SPEC.md</code> に落とし、<strong>新しいセッション</strong>で実装させると、設計の議論で汚れたコンテキストを実装に持ち込まずに済みます（<a href="ch02-skills-prompts-rules.html#s2-5">2-5</a>）。</p>
+    <h4>並列にする</h4>
+    <ul>
+      <li><strong>worktree で隔離する</strong>：<code>claude --worktree</code> は同じリポジトリを別ディレクトリにもう一つチェックアウトして起動し、並列セッションのファイル競合を防ぐ。同じファイルを触る作業を並走させるなら必須</li>
+      <li><strong>Writer と Reviewer を分ける</strong>：実装したセッションとは別のセッション（または <code>/code-review</code>）に差分だけを見せると、実装に至った思考を知らないぶん確証バイアスが入りにくい</li>
+      <li><strong>デスクトップ・クラウドの並列セッション</strong>：Desktop アプリは Git 分離した並列セッションを画面で管理でき、Web（claude.ai/code）は長時間タスクを手元のマシンから切り離せる（<a href="ch01-overview-setup-basics.html#s1-6">1-6</a>）</li>
+    </ul>
+    <div class="note">
+      <span class="label">worktree はキャッシュも分ける</span>
+      <p>プロンプトキャッシュは実質的にディレクトリ単位です。worktree はディレクトリが別なので、<strong>互いのキャッシュを読みません</strong>（<a href="ch06-context-cost-caching.html#s6-3">6-3</a>）。隔離の代償として、それぞれが自分のキャッシュを温め直します。</p>
+    </div>
+    <div class="try">
+      <span class="label">試してみる：隔離した worktree で起動する</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="claude --worktree">claude --worktree     # 別ディレクトリにチェックアウトして起動</span></code></pre></div>
+      <p>元のディレクトリで動いているセッションと同時に、別ブランチの作業を任せられます。</p>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/best-practices">ベストプラクティス — セッションを管理する／自動化とスケール</a> / <a href="https://code.claude.com/docs/ja/worktrees">worktree による並列セッション</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s4-4" data-slide="4-4" data-slide-title="実行中のセッションを確認する">
+    <h3>4-4. 実行中のセッションを確認する</h3>
+    <p>バックグラウンドや並列で動かし始めると「今どれが動いているのか」が分からなくなります。<strong>確認コマンドは対象ごとに違います</strong>。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>対象</th><th>コマンド</th><th>見えるもの</th></tr></thead>
+        <tbody>
+          <tr><td><strong>このセッションのバックグラウンド処理</strong></td><td><code>/tasks</code></td><td>長いコマンド（<a href="ch03-agent-loop-harness.html#s3-5">3-5</a>）や <code>Ctrl+B</code> で裏に送ったタスクの一覧。確認・アタッチ・停止できる</td></tr>
+          <tr><td><strong>バックグラウンドセッション全体</strong></td><td>ターミナルで <code>claude agents</code></td><td>エージェントビュー。全セッションの状態と、<strong>どれが入力待ちか</strong>が 1 画面に出る</td></tr>
+          <tr><td><strong>デスクトップの並列セッション</strong></td><td>Desktop アプリ</td><td>セッション画面で一覧</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="label">紛らわしい 2 つ</span>
+      <p><code>claude agents</code>（エージェントビューを開く）と <code>/agents</code> は<strong>別物</strong>です。v2.1.198 以降、<code>/agents</code> はサブエージェント定義ファイルの場所を表示するだけになりました。</p>
+    </div>
+    <h4>ステータスライン — 常に見えている計器</h4>
+    <p><code>/context</code> や <code>/usage</code> は「見に行く」ものですが、ステータスラインは<strong>常に見えている</strong>点が違います。コンテキスト残量やキャッシュの温度を横目で把握できると、<code>/clear</code> や <code>/compact</code> の判断が早くなります。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>スクリプトが受け取れるフィールド</th><th>中身</th><th>注意</th></tr></thead>
+        <tbody>
+          <tr><td><code>context_window.used_percentage</code></td><td>コンテキスト使用率</td><td><strong>入力トークンだけ</strong>から算出</td></tr>
+          <tr><td><code>current_usage</code></td><td>入力・出力・キャッシュ書き込み・読み出しの内訳</td><td>最初の API 呼び出し前と <code>/compact</code> 直後は <code>null</code></td></tr>
+          <tr><td><code>prompt_cache</code></td><td><code>hit_ratio</code> / <code>warm</code> / <code>ttl</code> / <code>misses</code></td><td>短い表示なら <code>warm</code> と <code>hit_ratio</code> の 2 つで足りる（v2.1.251 以降）</td></tr>
+          <tr><td>その他</td><td>git の状態、モデル名、レート制限、セッションのコストと経過時間</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="try">
+      <span class="label">試してみる：動いているものを見る・計器を作る</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="/tasks">/tasks</span><span class="cmd" data-copy="/statusline モデル名とコンテキスト使用率をプログレスバー付きで表示して">/statusline モデル名とコンテキスト使用率をプログレスバー付きで表示して</span></code></pre></div>
+      <p><code>/statusline</code> は自然言語で頼むとスクリプトが <code>~/.claude/</code> に生成され、設定も自動で更新されます。</p>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/agents">エージェントを並列に動かす — 実行中の作業を確認する</a> / <a href="https://code.claude.com/docs/ja/agent-view">エージェントビュー</a></li>
+        <li><a href="https://code.claude.com/docs/ja/statusline">ステータスラインをカスタマイズする</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s4-5" data-slide="4-5" data-slide-title="この章の持ち帰り">
+    <h3>4-5. この章の持ち帰り</h3>
+    <p>セッションの扱いで差が付くのは、<strong>「戻せる範囲」と「区切るタイミング」</strong>の 2 点です。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>覚えること</th><th>仕事での効き目</th><th>具体的な操作</th></tr></thead>
+        <tbody>
+          <tr><td><strong>セッションは互いに独立。橋渡しは CLAUDE.md と自動メモリだけ</strong></td><td>「前のセッションで言ったのに」が通じない理由が分かる。残したいことは会話ではなくファイルに置く</td><td><a href="ch03-agent-loop-harness.html#p-memory">3-6 メモリ</a>、<a href="ch02-skills-prompts-rules.html">2 章</a></td></tr>
+          <tr><td><strong>チェックポイントは git の代わりにならない</strong></td><td>Bash 経由・サブエージェント・外部副作用は戻せない。任せる前にコミットする習慣が事故を防ぐ</td><td><code>git commit</code> してから任せる</td></tr>
+          <tr><td><strong>同じ問題で 2 回失敗したら <code>/clear</code></strong></td><td>作り直すほうが速い。<code>/clear</code> は要約を生成しないので実質コスト 0</td><td><code>/clear</code> → 学んだことを織り込んで再依頼</td></tr>
+          <tr><td><strong>戻る予定があるなら先に <code>/rename</code></strong></td><td><code>--resume</code> の一覧で見分けられる。複数の作業を並行しても迷子にならない</td><td><code>/rename oauth-work</code></td></tr>
+          <tr><td><strong>同じファイルを触る並列作業は worktree で隔離</strong></td><td>ファイル競合が消える。ただしキャッシュも別になる</td><td><code>claude --worktree</code></td></tr>
+          <tr><td><strong>放置したバックグラウンドは <code>/tasks</code> で止める</strong></td><td>裏に回った長いコマンドは消費し続ける。入力待ちで止まっているセッションは <code>claude agents</code> で見つかる</td><td><code>/tasks</code> / <code>claude agents</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="label">意外と知られていない</span>
+      <p><strong><code>Esc</code> 2 回が巻き戻しになるのは、入力欄が空のときだけです。</strong>もう一つ、<strong>ステータスラインは自然言語で作れます</strong>。「<code>/statusline</code> モデル名と使用率をバーで表示して」と頼めばスクリプトごと生成され、コンテキスト残量が常に見えるようになります。<code>/clear</code> の判断が早くなり、自動コンパクションがタスクの最中に走る事故が減ります。</p>
+    </div>
+  </article>
+</section>
+
+</main>
+</div>
+
+<script src="assets/app.js"></script>
+<script src="assets/toc.js"></script>
+<script src="assets/nav.js"></script>
+</body>
+</html>

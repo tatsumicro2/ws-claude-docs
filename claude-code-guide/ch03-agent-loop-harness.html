@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>エージェントループとハーネス — Claude Code 体系的入門</title>
+<meta name="description" content="Claude Code の中身は、状態を持たないモデルを「コンテキストを集め、行動し、検証する」ループで回し、その周りをハーネスが囲んでいる構造です。製品が変わっても残る原理をここで押さえます。">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/nav.css">
+</head>
+<body>
+<div class="wrap">
+
+<main>
+
+<nav class="crumb"><a href="index.html">Claude Code 体系的入門</a><span>/</span>第3章</nav>
+
+<section class="chapter" id="ch3" data-chapter="3">
+  <div class="chapter-head">
+    <span class="chapter-num">03</span>
+    <h1>エージェントループとハーネス</h1>
+  </div>
+  <p class="chapter-lede">
+    Claude Code を「なんとなく賢いツール」から「挙動が予測できる道具」に変えるのが、この章です。図 1-1 の核である <strong>LLM・コンテキストウィンドウ・ツール使用・エージェントループ</strong>を Claude Code の部品名でたどり、章末で「製品が変わっても残る事実」として原理にまとめます。他の章の「原理との対応」は、この章末の <a href="#s3-6">3-6</a> を指しています。
+  </p>
+
+  <div class="note">
+    <span class="label">原理との対応</span>
+    <p>この章は図 1-1 の核、<strong>LLM・コンテキストウィンドウ・ツール使用・エージェントループ</strong>を <strong>Claude Code の部品名で</strong>たどる章です。<a href="#s3-1">3-1</a> と <a href="#s3-2">3-2</a> はエージェントループとそれを回すハーネス（<a href="#p-loop">3-6 ループ</a>・<a href="#p-context">3-6 コンテキスト</a>）、<a href="#s3-3">3-3</a> はモデルの差し替えと推論に使う出力トークン量（<a href="#p-llm">3-6 LLM</a>）、<a href="#s3-4">3-4</a> と <a href="#s3-5">3-5</a> はハーネスが持つツールと「結果もコンテキストに戻る」ことの帰結（<a href="#p-tool">3-6 ツール使用</a>・<a href="#p-control">3-6 ガードレール</a>）です。廃れないのは章末 <a href="#s3-6">3-6</a> にまとめた原理のほうで、モデル名・ウィンドウ幅・ツールの数・タイムアウトの秒数といった本文の数値はバージョンで変わります。</p>
+  </div>
+
+  <article class="slide" id="s3-1" data-slide="3-1" data-slide-title="エージェントループ">
+    <h3>3-1. エージェントループ（Agentic loop）</h3>
+    <p>タスクを与えると、Claude は <strong>①コンテキストの収集 → ②アクションの実行 → ③結果の検証</strong> という 3 フェーズを、必要なだけ繰り返します。フェーズは厳密には分かれておらず、互いに溶け合います。</p>
+    <figure>
+      <svg viewBox="0 0 760 266" role="img" aria-label="エージェントループの図。プロンプトから、コンテキスト収集・アクション実行・結果検証の3フェーズを順に進み、③から①へ戻って必要なだけ周回し、完了に至る。">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <g fill="none" stroke="currentColor" stroke-width="1.4" opacity=".85" style="color:var(--muted)">
+          <path d="M118,130 H188" marker-end="url(#ar)"/>
+          <path d="M330,130 H382" marker-end="url(#ar)"/>
+          <path d="M520,130 H572" marker-end="url(#ar)"/>
+          <path d="M641,182 C641,236 259,236 259,182" marker-end="url(#ar)" stroke-dasharray="5 4"/>
+        </g>
+        <g>
+          <rect x="14" y="104" width="104" height="52" rx="6" stroke-width="1.2" style="fill:var(--ink-soft);stroke:var(--ink)"/>
+          <text x="66" y="135" text-anchor="middle" font-size="13" style="font-family:var(--font-sans);fill:var(--text)">プロンプト</text>
+        </g>
+        <g>
+          <rect x="188" y="90" width="142" height="80" rx="8" stroke-width="1.6" style="fill:var(--surface-2);stroke:var(--accent)"/>
+          <text x="259" y="118" text-anchor="middle" font-size="12" style="font-family:var(--font-mono);fill:var(--accent)">01</text>
+          <text x="259" y="140" text-anchor="middle" font-size="13.5" style="fill:var(--text)">コンテキスト収集</text>
+          <text x="259" y="158" text-anchor="middle" font-size="10.5" style="fill:var(--muted)">検索・読み取り・調査</text>
+        </g>
+        <g>
+          <rect x="382" y="90" width="138" height="80" rx="8" stroke-width="1.6" style="fill:var(--surface-2);stroke:var(--accent)"/>
+          <text x="451" y="118" text-anchor="middle" font-size="12" style="font-family:var(--font-mono);fill:var(--accent)">02</text>
+          <text x="451" y="140" text-anchor="middle" font-size="13.5" style="fill:var(--text)">アクション実行</text>
+          <text x="451" y="158" text-anchor="middle" font-size="10.5" style="fill:var(--muted)">編集・コマンド実行</text>
+        </g>
+        <g>
+          <rect x="572" y="90" width="138" height="80" rx="8" stroke-width="1.6" style="fill:var(--surface-2);stroke:var(--accent)"/>
+          <text x="641" y="118" text-anchor="middle" font-size="12" style="font-family:var(--font-mono);fill:var(--accent)">03</text>
+          <text x="641" y="140" text-anchor="middle" font-size="13.5" style="fill:var(--text)">結果の検証</text>
+          <text x="641" y="158" text-anchor="middle" font-size="10.5" style="fill:var(--muted)">テスト・型チェック</text>
+        </g>
+        <text x="450" y="253" text-anchor="middle" font-size="11" style="fill:var(--muted)">検証結果を踏まえて ① に戻る（任意の時点でユーザーが中断・操舵できる）</text>
+        <text x="66" y="76" text-anchor="middle" font-size="10.5" style="fill:var(--muted)">ユーザー</text>
+        <text x="641" y="76" text-anchor="middle" font-size="10.5" style="fill:var(--muted)">→ 完了報告</text>
+      </svg>
+      <figcaption>図 3-1：エージェントループ。周回数はタスクによって変わる（質問なら ① だけで完了、バグ修正なら ①〜③ を何周も）。</figcaption>
+    </figure>
+    <ul>
+      <li>ループを駆動するのは <strong>推論するモデル</strong>（<a href="#s3-3">3-3</a>）と <strong>行動するツール</strong>（<a href="#s3-4">3-4</a>）の 2 要素です。</li>
+      <li>ユーザーもループの一部です。<code>Esc</code> で即停止、あるいは実行中に文章を送って軌道修正できます。</li>
+      <li>1 プロンプトに対する一連の周回を<strong>ターン</strong>と呼びます。チェックポイントの単位（<a href="ch04-sessions-checkpoints.html#s4-2">4-2</a>）もターンです。</li>
+    </ul>
+    <div class="try">
+      <span class="label">試してみる：ループを観察する</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="claude &quot;READMEを読んで、このプロジェクトのテスト実行方法を教えて&quot;">claude "READMEを読んで、このプロジェクトのテスト実行方法を教えて"</span></code></pre></div>
+      <p><code>Ctrl+O</code> でトランスクリプトビューアを開くと、思考とツール使用を含む履歴を遡れます（<code>Esc</code> で閉じる）。</p>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul><li><a href="https://code.claude.com/docs/ja/how-claude-code-works">Claude Code の仕組み — エージェントループ</a></li></ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s3-2" data-slide="3-2" data-slide-title="エージェントハーネス">
+    <h3>3-2. エージェントハーネス（Agentic harness）</h3>
+    <p>モデル単体は文章を返すだけです。ループを回せるのは、モデルを取り巻く仕掛け、<strong>エージェントハーネス</strong>があるからです。<strong>Claude Code の正体はこれです。</strong></p>
+    <figure>
+      <svg viewBox="0 0 760 210" role="img" aria-label="エージェントハーネスの図。中心にモデルがあり、それを取り巻くツール群・コンテキスト管理・実行環境・権限と安全装置の4要素がハーネスを構成する。">
+        <g style="font-family:var(--font-sans)">
+          <rect x="270" y="70" width="220" height="70" rx="10" stroke-width="1.8" style="fill:var(--ink-soft);stroke:var(--ink)"/>
+          <text x="380" y="100" text-anchor="middle" font-size="14" style="fill:var(--text)">モデル</text>
+          <text x="380" y="120" text-anchor="middle" font-size="10.5" style="fill:var(--muted)">推論するだけ。記憶も手足も持たない</text>
+
+          <rect x="30" y="24" width="200" height="52" rx="8" stroke-width="1.4" style="fill:var(--accent-bg);stroke:var(--accent)"/>
+          <text x="130" y="46" text-anchor="middle" font-size="12.5" style="fill:var(--text)">ツール群</text>
+          <text x="130" y="63" text-anchor="middle" font-size="10.5" style="fill:var(--muted)">読む・書く・実行する手足</text>
+
+          <rect x="530" y="24" width="200" height="52" rx="8" stroke-width="1.4" style="fill:var(--accent-bg);stroke:var(--accent)"/>
+          <text x="630" y="46" text-anchor="middle" font-size="12.5" style="fill:var(--text)">コンテキスト管理</text>
+          <text x="630" y="63" text-anchor="middle" font-size="10.5" style="fill:var(--muted)">何を覚え、何を捨てるか</text>
+
+          <rect x="30" y="134" width="200" height="52" rx="8" stroke-width="1.4" style="fill:var(--accent-bg);stroke:var(--accent)"/>
+          <text x="130" y="156" text-anchor="middle" font-size="12.5" style="fill:var(--text)">実行環境</text>
+          <text x="130" y="173" text-anchor="middle" font-size="10.5" style="fill:var(--muted)">シェル・作業ディレクトリ</text>
+
+          <rect x="530" y="134" width="200" height="52" rx="8" stroke-width="1.4" style="fill:var(--accent-bg);stroke:var(--accent)"/>
+          <text x="630" y="156" text-anchor="middle" font-size="12.5" style="fill:var(--text)">権限と安全装置</text>
+          <text x="630" y="173" text-anchor="middle" font-size="10.5" style="fill:var(--muted)">確認・拒否・巻き戻し</text>
+
+          <g fill="none" stroke="currentColor" stroke-width="1.2" opacity=".7" style="color:var(--muted)">
+            <path d="M230,50 C260,50 262,78 270,86"/>
+            <path d="M530,50 C500,50 498,78 490,86"/>
+            <path d="M230,160 C260,160 262,132 270,124"/>
+            <path d="M530,160 C500,160 498,132 490,124"/>
+          </g>
+        </g>
+      </svg>
+      <figcaption>図 3-2：Claude Code がモデルに与えているもの。設定や指示は、いずれかを調整する行為です。</figcaption>
+    </figure>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>ハーネスの要素</th><th>あなたが調整できるもの</th><th>本資料</th></tr></thead>
+        <tbody>
+          <tr><td>ツール群</td><td>権限ルールでの許可・拒否、スキル</td><td><a href="#s3-4">3-4</a> / <a href="ch05-guardrails.html#s5-4">5-4</a> / <a href="ch02-skills-prompts-rules.html#s2-6">2-6</a></td></tr>
+          <tr><td>コンテキスト管理</td><td>CLAUDE.md、自動メモリ、コンパクション</td><td><a href="ch02-skills-prompts-rules.html">2 章</a> / <a href="ch06-context-cost-caching.html#s6-1">6-1</a> / <a href="ch06-context-cost-caching.html#s6-6">6-6</a></td></tr>
+          <tr><td>実行環境</td><td>作業ディレクトリ、サンドボックス、worktree</td><td><a href="ch05-guardrails.html#s5-5">5-5</a> / <a href="ch04-sessions-checkpoints.html#s4-3">4-3</a></td></tr>
+          <tr><td>権限と安全装置</td><td>権限モード、フック、チェックポイント</td><td><a href="ch05-guardrails.html#s5-2">5-2</a> / <a href="ch05-guardrails.html#s5-6">5-6</a> / <a href="ch04-sessions-checkpoints.html#s4-2">4-2</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="label">「4 要素」は公式の分類ではありません</span>
+      <p>公式が定義しているのは「モデルにツール・コンテキスト・実行環境を与えてループを回すソフトウェア層」という<strong>ハーネスの役割</strong>までで、構成要素の数え方は決まっていません。上の 4 つは、<strong>利用者が調整できる場所</strong>として本資料が整理したものです。</p>
+    </div>
+
+    <h4>システムプロンプト — ハーネスが毎回先頭に置くもの</h4>
+    <p>上の 4 つはあなたが調整できるものですが、ハーネスはもう 1 つ、<strong>調整できないのに毎回必ず送られるもの</strong>をモデルに与えています。<strong>システムプロンプト</strong>です。実際に API へ送られるリクエストは、次の 3 つの領域に分かれています。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>領域</th><th>中身</th><th>誰が書くか</th></tr></thead>
+        <tbody>
+          <tr><td><code>system</code></td><td><strong>システムプロンプト</strong>。Claude Code という製品そのものの指示（役割の定義、ツールの使い分け方針、安全上の規則、作業ディレクトリ・日付・OS などの環境情報）</td><td>Anthropic（CLI に同梱）</td></tr>
+          <tr><td><code>tools</code></td><td>そのセッションで使えるツールの定義一式（<a href="#s3-4">3-4</a>）</td><td>Claude Code が組み立てる</td></tr>
+          <tr><td><code>messages</code></td><td>あなたのプロンプトと、それ以降の会話・ツール結果</td><td>あなたと Claude</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>システムプロンプトはあなたが書くものではなく、Claude Code のバージョンが上がれば中身も変わります。手を出せるのは、末尾に付け足す <code>--append-system-prompt</code> と、振る舞いごと差し替える<strong>出力スタイル</strong>（output style。Default / Explanatory / Learning など）の 2 通りです。</p>
+    <div class="note">
+      <span class="label">CLAUDE.md との違い</span>
+      <p>CLAUDE.md は<strong>あなたが書く指示</strong>、システムプロンプトは<strong>製品が持つ指示</strong>で、置かれる領域そのものが別です。<code>/context</code> が「System prompt」と「Memory files」を別の行で表示するのはこのためです。プロンプトキャッシュ（<a href="ch06-context-cost-caching.html#s6-3">6-3</a>）の第 1 層がシステムプロンプトなのは、これが<strong>毎リクエストの先頭に来る、最も動かない部分</strong>だから。<code>tools</code> がその直後に続くので、<strong>セッション途中でツールを足すと、そこから後ろが全て再計算になります</strong>。</p>
+    </div>
+    <div class="try">
+      <span class="label">試してみる：3 つの領域の大きさを見る</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="/context">/context</span></code></pre></div>
+      <p><strong>System prompt</strong> と <strong>System tools</strong> の 2 行が、ここで説明した <code>system</code> と <code>tools</code>。<strong>Messages</strong> が会話です。この 3 つが、ループの周回ごとに丸ごと送り直されています。</p>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/glossary">用語集 — Agentic harness</a> / <a href="https://code.claude.com/docs/ja/how-claude-code-works">Claude Code の仕組み</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s3-3" data-slide="3-3" data-slide-title="モデルと努力レベル">
+    <h3>3-3. モデルと努力レベル</h3>
+    <h4>モデルエイリアス</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>エイリアス</th><th>用途</th></tr></thead>
+        <tbody>
+          <tr><td><code>fable</code></td><td>最難関・長時間のタスク</td></tr>
+          <tr><td><code>opus</code></td><td>複雑な推論</td></tr>
+          <tr><td><code>sonnet</code></td><td>日常のコーディング</td></tr>
+          <tr><td><code>haiku</code></td><td>高速・低コスト</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>上ほど高性能・高コストです。ほかに、モデルを直接選ばない<strong>特殊な指定</strong>があります。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>指定</th><th>解決先</th></tr></thead>
+        <tbody>
+          <tr><td><code>best</code></td><td>Fable 5 が使えれば Fable 5、なければ最新 Opus</td></tr>
+          <tr><td><code>opusplan</code></td><td>計画は Opus、実行は Sonnet</td></tr>
+          <tr><td><code>sonnet[1m]</code> / <code>opus[1m]</code></td><td>1M コンテキスト版（<a href="ch06-context-cost-caching.html#s6-1">6-1</a>）</td></tr>
+          <tr><td><code>default</code></td><td>既定に戻す</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>切り替えは <code>/model</code>、起動時は <code>claude --model &lt;name&gt;</code>。解決先はプロバイダによって異なります。</p>
+    <h4>努力レベル（effort）— 適応的推論の制御</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>レベル</th><th>使いどころ</th></tr></thead>
+        <tbody>
+          <tr><td><code>max</code></td><td>最も深い推論。過剰思考の傾向あり</td></tr>
+          <tr><td><code>xhigh</code></td><td>深い推論。トークンを多く使う（Opus 4.6 / Sonnet 4.6 では使えない）</td></tr>
+          <tr><td><code>high</code></td><td><strong>多くのモデルの既定</strong></td></tr>
+          <tr><td><code>medium</code></td><td>コスト重視</td></tr>
+          <tr><td><code>low</code></td><td>スコープが明確でレイテンシ重視</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>上ほど思考トークンを使い、高コストになります。「考える」時間もトークンとして生成され、出力として課金されます（<a href="#p-llm">3-6 LLM</a>）。<strong>拡張思考</strong>は <code>Option/Alt+T</code> で切替（既定値は <code>alwaysThinkingEnabled</code>）。単発で深く考えさせたいときはプロンプトに <code>ultrathink</code> と書きます。</p>
+    <div class="note warn">
+      <span class="label">モデルと努力レベルはセッション冒頭で決める</span>
+      <p>どちらもプロンプトキャッシュのキーに含まれるため、<strong>タスクの途中で変えると、そのターンだけ入力コストが約 10 倍</strong>になります（<a href="ch06-context-cost-caching.html#s6-3">6-3</a>）。</p>
+    </div>
+    <div class="try">
+      <span class="label">試してみる：モデルと努力レベルの切替</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="/model sonnet">/model sonnet</span><span class="cmd" data-copy="/effort medium">/effort medium</span><span class="cmd" data-copy="/status">/status      # 現在のモデル・設定を確認</span></code></pre></div>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/model-config">モデル設定 — 利用可能なモデル／努力レベル／拡張思考／拡張コンテキスト</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s3-4" data-slide="3-4" data-slide-title="組み込みツールと操作できる範囲">
+    <h3>3-4. 組み込みツールと操作できる範囲</h3>
+    <p><strong>組み込みツール（built-in tools）</strong>は Claude Code が既定で備えている手足です。ハーネスがツールの定義（名前・説明・引数のスキーマ）をコンテキストと一緒に渡し、モデルは「このツールを、この引数で」を構造化して返す（<code>tool_use</code>）。ハーネスが権限を確認して実行し、結果（<code>tool_result</code>）をコンテキストの末尾に足して再び渡します。</p>
+    <div class="note">
+      <span class="label">数はバージョンと環境で変わる</span>
+      <p>公式のツールリファレンスに載っているのは 40 種類あまりですが、実際にセッションへ渡されるツールは<strong>バージョン・プラン・プラットフォームで増減します</strong>（本表は v2.1.251 時点）。手元の断面は下の「試してみる」で確認できます。</p>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>カテゴリ</th><th>できること</th><th>ツール名</th></tr></thead>
+        <tbody>
+          <tr><td><strong>ファイル操作</strong></td><td>読み取り、編集、新規作成</td><td><code>Read</code> <code>Edit</code> <code>Write</code> <code>NotebookEdit</code></td></tr>
+          <tr><td><strong>検索</strong></td><td>名前でのファイル検索、内容の正規表現検索</td><td><code>Glob</code> <code>Grep</code></td></tr>
+          <tr><td><strong>実行</strong></td><td>シェルコマンド、サーバー起動、テスト、git</td><td><code>Bash</code> <code>PowerShell</code>（Windows 中心） <code>Monitor</code>（バックグラウンド実行の出力を受け取り続ける）</td></tr>
+          <tr><td><strong>ウェブ</strong></td><td>検索、ページ取得</td><td><code>WebSearch</code> <code>WebFetch</code></td></tr>
+          <tr><td><strong>コードインテリジェンス</strong></td><td>定義ジャンプ、参照検索、編集後の型エラー表示</td><td><code>LSP</code>（コードインテリジェンスプラグインが必要）</td></tr>
+          <tr><td><strong>オーケストレーション</strong></td><td>サブエージェント生成、スキル実行、タスクリスト管理</td><td><code>Agent</code> <code>Skill</code> <code>Workflow</code> <code>TaskCreate</code> 系 <code>TodoWrite</code></td></tr>
+          <tr><td><strong>対話・確認</strong></td><td>ユーザーへの質問、プランの提示と承認</td><td><code>AskUserQuestion</code> <code>EnterPlanMode</code> <code>ExitPlanMode</code></td></tr>
+          <tr><td><strong>セッション・通信ほか</strong></td><td>他エージェントとの通信、隔離作業、定期実行、遅延ロードされたツールの検索</td><td><code>SendMessage</code> <code>EnterWorktree</code> <code>CronCreate</code> <code>ToolSearch</code> ほか</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>ツール名は<strong>権限ルール・フックのマッチャーで使う正確な文字列</strong>です（<a href="ch05-guardrails.html#s5-4">5-4</a>）。無効化は権限設定の <code>deny</code> に追加しますが、<strong>セッション途中で足すとツール定義が変わりプロンプトキャッシュが無効になります</strong>。<code>Agent</code> はセッションのツール一覧には旧名の <code>Task</code> で現れることがあります。</p>
+    <h4>AskUserQuestion の見え方</h4>
+    <div class="code-wrap"><pre><code>? 認証方式をどれにしますか？
+
+  <b>❯ 1. セッション Cookie</b>
+      既存のミドルウェアを流用できる
+
+    2. JWT
+      ステートレス。将来の API 分離に向く
+
+    3. Other
+      自分で入力する
+
+  ↑↓ 選択   Enter 決定   Esc 中断</code></pre></div>
+    <p>数字キーで選ぶか、<code>Other</code> で自由に書けます。「先に理由を説明して」のような指示もそのまま通ります。</p>
+
+    <h4>操作できる範囲</h4>
+    <p><code>claude</code> をディレクトリで起動した時点で、下の範囲が視界に入ります。<strong>読むだけでなく、変更・実行までできる</strong>ものが含まれる点に注意してください。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>対象</th><th>読む</th><th>変更・実行する</th></tr></thead>
+        <tbody>
+          <tr><td><strong>プロジェクトのファイル</strong><br>起動ディレクトリ以下（＋許可した追加ディレクトリ）</td><td>✓</td><td>✓ 編集・新規作成・削除</td></tr>
+          <tr><td><strong>ターミナル</strong><br>ビルド、テスト、git、パッケージマネージャ</td><td>✓ 出力を読む</td><td>✓ <strong>実行できるコマンドはすべて</strong></td></tr>
+          <tr><td><strong>git の状態</strong><br>ブランチ、未コミット変更、コミット履歴</td><td>✓</td><td>✓ コミット・ブランチ作成・PR 作成</td></tr>
+          <tr><td><strong>CLAUDE.md・自動メモリ</strong></td><td>✓ 毎セッション</td><td>✓ 自動メモリは Claude 自身が書き足す</td></tr>
+          <tr><td><strong>ウェブ</strong></td><td>✓ <code>WebSearch</code> / <code>WebFetch</code></td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>既定では触れないもの</th><th>触れさせたいとき</th></tr></thead>
+        <tbody>
+          <tr><td><strong>作業ディレクトリの外</strong>のファイル</td><td><code>/add-dir</code> または <code>--add-dir</code> で明示的に追加する（<a href="ch05-guardrails.html#s5-5">5-5</a>）</td></tr>
+          <tr><td><strong>あなたのブラウザ・画面・他のアプリ</strong></td><td>Chrome 連携やコンピュータ操作を有効にする</td></tr>
+          <tr><td><strong>外部サービスの操作</strong>（チケット更新、DB クエリ、Slack 投稿など）</td><td>CLI ツール（<code>gh</code> など）を使わせるか、MCP サーバーを接続する（本資料の範囲外）</td></tr>
+          <tr><td><strong>過去のセッションの記憶</strong></td><td>CLAUDE.md・自動メモリに残す。会話自体は <code>--resume</code> で再開する（<a href="ch04-sessions-checkpoints.html#s4-1">4-1</a>）</td></tr>
+          <tr><td><strong>あなたの承認</strong></td><td>権限モードと権限ルールで、何を確認なしに許すかを決める（<a href="ch05-guardrails.html#s5-2">5-2</a>）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="label">範囲を広げるほど、確認は減らせない</span>
+      <p>「触れる範囲」と「安全装置」は表裏です。追加ディレクトリや外部接続を足すほど、権限ルールとサンドボックスの設計が効いてきます（<a href="ch05-guardrails.html#s5-4">5-4</a>・<a href="ch05-guardrails.html#s5-5">5-5</a>）。</p>
+    </div>
+    <div class="try">
+      <span class="label">試してみる：どのツールが使われたか見る</span>
+      <p>対話セッションでは <code>Ctrl+O</code> のトランスクリプトビューアで確認できます。非対話モードでは <code>--output-format stream-json --verbose</code> を使い、<code>jq</code> で「使われたツールと引数」だけに絞ると読めます。</p>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="claude -p &quot;README を読んでテスト実行方法を1行で答えて&quot; --output-format stream-json --verbose | jq -rc 'select(.type==&quot;assistant&quot;) | .message.content[] | select(.type==&quot;tool_use&quot;) | [.name, (.input|tostring)] | @tsv'">claude -p "README を読んでテスト実行方法を1行で答えて" --output-format stream-json --verbose \
+  | jq -rc 'select(.type=="assistant") | .message.content[] | select(.type=="tool_use") | [.name,(.input|tostring)] | @tsv'</span></code></pre></div>
+      <div class="code-wrap"><pre><code>Read    {"file_path":"/path/to/README.md"}</code></pre></div>
+      <p>最初の 1 行（<code>system</code> イベント）の <code>tools</code> 配列が、そのセッションに渡されたツールの一覧です。</p>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/tools-reference">ツールリファレンス（全ツール一覧・権限要否）</a> / <a href="https://code.claude.com/docs/ja/how-claude-code-works">Claude Code の仕組み — ツール／Claude がアクセスできるもの</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s3-5" data-slide="3-5" data-slide-title="ツール別の落とし穴">
+    <h3>3-5. ツール別の落とし穴</h3>
+    <p>ツール名を知っていても、挙動を知らないと「なぜそうなるのか」が分かりません。共通の原因は 1 つ、<strong>ツールの結果もコンテキストに戻る</strong>ことです。だから出力は切り詰められ、巨大な結果は別の場所に逃がされます。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>ツール</th><th>見落としやすい挙動</th><th>実務での意味</th></tr></thead>
+        <tbody>
+          <tr>
+            <td rowspan="4"><strong><code>Bash</code></strong></td>
+            <td>コマンドごとに別プロセス。<code>export</code> した環境変数は<strong>引き継がれない</strong></td>
+            <td>venv や conda は<strong>起動前に</strong>有効化する。<code>CLAUDE_ENV_FILE</code> でも渡せる</td>
+          </tr>
+          <tr>
+            <td><code>cd</code> の作業ディレクトリは<strong>引き継がれる</strong>（作業ディレクトリの内側にいる限り）</td>
+            <td>外に出ると自動リセットされ <code>Shell cwd was reset to ...</code> が付く</td>
+          </tr>
+          <tr>
+            <td>タイムアウトは既定 2 分・上限 10 分。超えたコマンドは<strong>停止ではなくバックグラウンドへ移る</strong></td>
+            <td><code>/tasks</code> で確認・停止する</td>
+          </tr>
+          <tr>
+            <td>結果に載る出力は<strong>約 30,000 文字</strong>まで。超えるとファイルに保存されパスだけ返る</td>
+            <td><code>BASH_MAX_OUTPUT_LENGTH</code> で最大 150,000 まで拡張可。そもそも <code>grep</code> で絞ってから渡すほうが速くて安い</td>
+          </tr>
+          <tr>
+            <td rowspan="3"><strong><code>Read</code></strong></td>
+            <td>大きいファイルは切られ、<strong><code>PARTIAL view</code> の注記</strong>付きで先頭だけ返る</td>
+            <td><strong>「読んだはずなのに後半を知らない」の原因</strong>。範囲を指定して読ませ直す</td>
+          </tr>
+          <tr>
+            <td>画像は<strong>視覚的な内容として</strong>渡る。PDF は 10 ページ超なら <code>pages</code> で範囲指定</td>
+            <td>スクリーンショットを貼れば見て判断できる</td>
+          </tr>
+          <tr>
+            <td>ディレクトリは読めない</td>
+            <td>一覧は <code>ls</code> などシェル側で取る</td>
+          </tr>
+          <tr>
+            <td><strong><code>Grep</code></strong></td>
+            <td><code>.gitignore</code> を<strong>尊重する</strong>。ripgrep ベースで POSIX grep とは正規表現が違う</td>
+            <td>無視対象を探すならパスを直接渡す</td>
+          </tr>
+          <tr>
+            <td><strong><code>Glob</code></strong></td>
+            <td><code>.gitignore</code> を<strong>尊重しない</strong>（Grep と逆）。結果は更新時刻順で<strong>最大 100 件</strong></td>
+            <td>ビルド生成物まで拾う。件数が多いならパターンを絞る</td>
+          </tr>
+          <tr>
+            <td rowspan="2"><strong><code>WebFetch</code></strong></td>
+            <td>取得後に<strong>小さいモデルが指定プロンプトで抽出</strong>する。設計上ロスがある</td>
+            <td><strong>「書かれていない」は聞き方が悪かっただけかもしれない</strong>。聞き直す</td>
+          </tr>
+          <tr>
+            <td>別ホストへのリダイレクトは<strong>追わず</strong>返す。レスポンスは 15 分キャッシュ</td>
+            <td>リダイレクト先は改めて呼び直す</td>
+          </tr>
+          <tr>
+            <td><strong><code>WebSearch</code></strong></td>
+            <td>返るのはタイトルと URL だけで、ページ本文は取らない</td>
+            <td>本文が要るなら <code>WebFetch</code> で追う</td>
+          </tr>
+          <tr>
+            <td><strong><code>AskUserQuestion</code></strong></td>
+            <td>質問は既定で<strong>答えるまで開いたまま</strong></td>
+            <td><code>askUserQuestionTimeout</code> で自動で閉じて続行できる。<strong>権限プロンプトとプラン承認は自動解決しない</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>Edit — 3 つの検査を通らないと適用されない</h4>
+    <div class="cards">
+      <div class="card">
+        <span class="tag">1</span><h5>編集前に読んでいる</h5>
+        <p>同じ会話でそのファイルを読んでいること（<code>PARTIAL view</code> で切れた読み取りは無効）。<code>cat</code> <code>head</code> <code>sed -n</code> でも、パイプなしの単一ファイルなら条件を満たす。新しいモデルは、Read ツールが使えて権限プロンプトが不要なら未読ファイルも編集できる。</p>
+      </div>
+      <div class="card">
+        <span class="tag">2</span><h5>完全一致</h5>
+        <p>空白・インデントを含めて 1 文字も違わないこと。正規表現もあいまい一致もない。</p>
+      </div>
+      <div class="card">
+        <span class="tag">3</span><h5>一意である</h5>
+        <p>2 箇所以上に現れる文字列は失敗する。前後を含めて長くするか <code>replace_all</code> を使う。</p>
+      </div>
+    </div>
+    <div class="try">
+      <span class="label">試してみる：Bash の永続性を確かめる</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="claude -p 'Bashツールを必ず2回に分けて呼んで。1回目は export FOO=bar だけ、2回目は echo &quot;[\$FOO]&quot; だけ。2回目の出力をそのまま貼って'">claude -p 'Bashツールを必ず2回に分けて呼んで。1回目は export FOO=bar だけ、2回目は echo "[$FOO]" だけ。2回目の出力をそのまま貼って'</span></code></pre></div>
+      <p>2 回目の出力は <code>[]</code> になります（実測）。呼び出しごとにシェルが作り直されるため <code>FOO</code> は残っていません。「2 回に分けて」と明示しないと Claude が 1 コマンドにまとめてしまい、現象が再現しません。</p>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/tools-reference">ツールリファレンス — ツール別の挙動</a> / <a href="https://code.claude.com/docs/ja/env-vars">環境変数リファレンス</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s3-6" data-slide="3-6" data-slide-title="原理 — 製品が変わっても残る事実">
+    <h3>3-6. 原理 — 製品が変わっても残る事実</h3>
+    <p>この章の部品は、どれも図 1-1 の核、<strong>LLM・コンテキストウィンドウ・ツール使用・エージェントループ</strong>の実装です。部品の名前・上限値・既定値は版で変わりますが、次の事実は Claude Code 以外のエージェントでも変わりません。他の章の「原理との対応」は、ここを指しています。</p>
+
+    <h4 id="p-llm">LLM — 記憶も副作用も持たない</h4>
+    <p>モデルは、コンテキストを受け取り、次のトークンを確率的に選んで返す<strong>状態を持たない推論エンジン</strong>です。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>事実</th><th>帰結</th><th>Claude Code での現れ方</th></tr></thead>
+        <tbody>
+          <tr><td><strong>記憶を持たない</strong></td><td>「覚えている」ように見えるのは、毎回これまでの全部を渡し直しているから。コンテキストに無いものは知らない</td><td>「さっき言ったよね」が通じない。指示はコンテキストに置く（<a href="ch02-skills-prompts-rules.html">2 章</a>）</td></tr>
+          <tr><td><strong>副作用を持たない</strong></td><td>ファイルを書くのもコマンドを打つのもモデルではない。「したい」と構造化して言うだけ</td><td>実行はハーネス側（<a href="#s3-2">3-2</a>）。止める場所もそこに集まる</td></tr>
+          <tr><td><strong>確率的である</strong></td><td>同じ入力でも出力は揺れる。再現性が要る処理はモデルの外（テスト・フック）に置く</td><td>同じ依頼で違う結果が返る。揺れて困る処理は検証で受ける（<a href="ch02-skills-prompts-rules.html#s2-5">2-5</a>、<a href="ch05-guardrails.html#s5-6">5-6</a>）</td></tr>
+          <tr><td><strong>推論も出力である</strong></td><td>「考える」時間はトークンとして生成され、出力として課金される。量は調整できるが無料ではない</td><td>モデル選択と努力レベル（<a href="#s3-3">3-3</a>）</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4 id="p-context">コンテキストウィンドウ — 有限で、毎ターン丸ごと送る</h4>
+    <p>セッションの状態は<strong>コンテキストウィンドウの中身だけ</strong>です。システムプロンプト・CLAUDE.md・自動メモリ・読み込まれたスキル・会話履歴・読んだファイル・コマンド出力が、毎ターンまとめてモデルに送られます。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>事実</th><th>帰結</th><th>Claude Code での現れ方</th></tr></thead>
+        <tbody>
+          <tr><td><strong>有限である</strong></td><td>上限に近づくと古いツール出力から消され、次に会話が要約される。要約の後、元の文言は無い</td><td><code>/context</code>・自動コンパクション・<code>/compact</code>（<a href="ch06-context-cost-caching.html#s6-1">6-1</a>・<a href="ch06-context-cost-caching.html#s6-6">6-6</a>）</td></tr>
+          <tr><td><strong>毎ターン丸ごと送る</strong></td><td>コストと時間はコンテキストの長さに比例する。会話が長いほど 1 往復が高く遅い</td><td>コストの構造（<a href="ch06-context-cost-caching.html#s6-2">6-2</a>）。CLAUDE.md は毎ターン送られる固定費</td></tr>
+          <tr><td><strong>先頭一致でキャッシュされる</strong></td><td>先頭（システムプロンプト・CLAUDE.md）を変えなければ再利用される。途中でモデルや設定を変えると作り直し</td><td>プロンプトキャッシュ（<a href="ch06-context-cost-caching.html#s6-3">6-3</a>）</td></tr>
+          <tr><td><strong>中身は目で見える</strong></td><td>会話は 1 行 1 イベントの JSONL としてディスクに保存される。「覚えている」の正体はこれを読み直していること</td><td><code>--resume</code>・セッション（<a href="ch04-sessions-checkpoints.html#s4-1">4-1</a>）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>金額は変わりますが構造は変わりません。出力トークン（推論を含む）は入力より高く、キャッシュに乗った入力は乗らない入力より安い。「短く保つ」「先頭を固定する」「出力を無駄に増やさない」の 3 つが、金額と速度の両方に効きます。</p>
+
+    <h4 id="p-tool">ツール使用（tool use）— モデルは選ぶだけで、実行しない</h4>
+    <p>ハーネスがツールの定義をコンテキストと一緒に渡し、モデルは「このツールを、この引数で」を構造化して返す（<code>tool_use</code>）。ハーネスが権限を確認して実行し、結果（<code>tool_result</code>）をコンテキストの末尾に足して再び渡す。LLM に行動させるどの道具も、この往復で動いています（OpenAI 系では Function Calling と呼ばれる同じ仕組みです）。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>事実</th><th>帰結</th><th>Claude Code での現れ方</th></tr></thead>
+        <tbody>
+          <tr><td><strong>ツールの定義はコンテキストに入る</strong></td><td>ツールを増やすほど毎ターンのトークンが増える。定義の遅延ロードはこの対策</td><td>組み込みツール（<a href="#s3-4">3-4</a>）・<code>ToolSearch</code> による遅延ロード</td></tr>
+          <tr><td><strong>モデルは選ぶだけで、実行しない</strong></td><td>実行の直前に、人・ルール・フックが割り込める。ガードレールはここで効く</td><td>権限モード（<a href="ch05-guardrails.html#s5-2">5-2</a>）・フック（<a href="ch05-guardrails.html#s5-6">5-6</a>）</td></tr>
+          <tr><td><strong>結果もコンテキストに戻る</strong></td><td>巨大なコマンド出力はそのままコンテキストを圧迫する。返す前に絞る価値がある</td><td>ツール別の落とし穴（<a href="#s3-5">3-5</a>）</td></tr>
+          <tr><td><strong>スキーマと説明文が精度を決める</strong></td><td>曖昧な定義は呼び出しがぶれる。スキルの <code>description</code> も同じ</td><td><a href="ch02-skills-prompts-rules.html#s2-7">2-7</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="label">意外と知られていない</span>
+      <p>ツールを 1 つでも渡すと、API 側でツール使用のためのシステムプロンプトが自動で追加されます（数百トークン規模）。ツール定義そのものも入力トークンとして課金されます。「ツールを足すと重くなる」の正体は、この 2 つの足し算です。</p>
+    </div>
+
+    <h4 id="p-loop">エージェントループ — 合否が返る領域でだけ収束する</h4>
+    <p>モデルの出力を実行し、結果をコンテキストに足して、またモデルへ渡す。この反復（<a href="#s3-1">3-1</a>）が収束する条件は、<strong>周回ごとに機械的な合否がコンテキストに入ること</strong>です。テスト・型検査・Lint・ビルドの合否は、次の周回の入力になります。合否が返らない仕事では、ループは「それらしいもの」を出して止まるしかありません。</p>
+    <ol>
+      <li><strong>対象をテキストで表現できる</strong> — コンテキストに入らないものは、モデルからは見えない</li>
+      <li><strong>結果を機械が判定できる</strong> — ループは合否が返ってくる領域でだけ収束する</li>
+      <li><strong>操作を巻き戻せる</strong> — 外れた周回のコストが低い（git、チェックポイント）</li>
+    </ol>
+    <p>ソフトウェア開発はこの 3 条件が揃っている領域で、名前に「Code」が付く理由もここにあります。3 条件が揃う仕事（設定ファイル、インフラ定義、データ変換、原稿の校正）ならコードでなくても同じように使え、揃わない仕事、つまり正解が主観的、実行して確かめられない、失敗が取り返しつかない仕事では、回すほど良くなる前提が崩れます。「テストを先に書いて」（<a href="ch02-skills-prompts-rules.html#s2-5">2-5</a>）やプランモード、フックでの自動検証（<a href="ch05-guardrails.html#s5-7">5-7</a>）は、すべてこの条件を満たすための操作です。</p>
+
+    <h4 id="p-memory">メモリ — 外に残す・分ける・縮める・捨てる</h4>
+    <p>コンテキストはセッションが終われば消え、長くなれば要約されます。それでも残したいもの、分けたいものに対して、原理から出てくる操作は 4 つしかありません。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>操作</th><th>原理</th><th>Claude Code での現れ方</th></tr></thead>
+        <tbody>
+          <tr><td><strong>外に残す</strong>（永続化）</td><td>コンテキストの外、ファイルに書いて、次のセッションの先頭に読み込む。人が書くものとモデルが書くものの 2 系統</td><td>CLAUDE.md・rules（人）／自動メモリ（モデル）— <a href="ch02-skills-prompts-rules.html">2 章</a></td></tr>
+          <tr><td><strong>分ける</strong>（分離）</td><td>別のコンテキストで別のモデル呼び出しを回し、要約だけを元に戻す。過程は要らず結果だけ要る仕事に効く</td><td>サブエージェント（本資料の範囲外）</td></tr>
+          <tr><td><strong>縮める</strong>（圧縮）</td><td>コンテキストを要約に置き換える。損失がある。何を残すかは指示できる</td><td><code>/compact</code>・自動コンパクション（<a href="ch06-context-cost-caching.html#s6-6">6-6</a>）</td></tr>
+          <tr><td><strong>捨てる</strong>（新規開始）</td><td>空のコンテキストから始める。戻ってくるのは永続化したものだけ</td><td><code>/clear</code>・新しいセッション（<a href="ch04-sessions-checkpoints.html#s4-3">4-3</a>）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>ここから 3 つの帰結が出ます。<strong>セッションは互いに独立</strong>で、橋渡しは永続化だけ。<strong>永続化したものは文脈であって強制ではない</strong>（CLAUDE.md も自動メモリもコンテキストの先頭に足されるだけで、モデルが読んで従う「ことが多い」）。<strong>分離すると過程は見えなくなる</strong>（要約だけが戻るので安く速いが、途中で何をしたかは残らない）。</p>
+
+    <h4 id="p-control">ガードレール — 副作用はハーネスにしかない</h4>
+    <p>モデルは何も実行できず、実行はすべてハーネスで起きます。だから止める・制限する・戻すはハーネス側に置きます。手段は性質の違う 2 種類に分かれ、<strong>守られなければならない規則はコンテキストではなくハーネスに置く</strong>のが公式ドキュメントも明示する方針です。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>種類</th><th>仕組み</th><th>確実さ</th><th>Claude Code での現れ方</th></tr></thead>
+        <tbody>
+          <tr><td><strong>ハーネスで強制する</strong></td><td>モデルを通さず、実行の直前・直後にハーネスが必ず動かす</td><td>決定論的。毎回同じように効く</td><td>権限ルール・フック・サンドボックス — <a href="ch05-guardrails.html">5 章</a></td></tr>
+          <tr><td><strong>文脈で頼む</strong></td><td>コンテキストに指示を置き、モデルが読んで従う</td><td>確率的。従うことが多いが保証はない</td><td>プロンプト・CLAUDE.md・スキル — <a href="ch02-skills-prompts-rules.html">2 章</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>CLAUDE.md に「.env を触るな」と書くのは依頼、PreToolUse フックで書き込みをブロックするのは強制です。また<strong>巻き戻せるのはハーネスが自分で触ったものだけ</strong>で、ファイル編集はスナップショットから戻せますが、DB・API・デプロイなど外部の副作用は戻せません（<a href="ch04-sessions-checkpoints.html#s4-2">4-2</a>）。外界に触れるのはハーネスだけなので、権限・サンドボックス・確認ダイアログはすべてツール実行の直前に集まります（<a href="ch05-guardrails.html#s5-1">5-1</a>）。</p>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/how-claude-code-works">Claude Code の仕組み</a> / <a href="https://code.claude.com/docs/ja/context-window">コンテキストウィンドウ</a> / <a href="https://code.claude.com/docs/ja/permissions">権限</a> / <a href="https://code.claude.com/docs/ja/hooks-guide">フック</a></li>
+        <li><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview">Tool use with Claude</a>（Claude API。<code>tool_use</code> / <code>tool_result</code> の往復と、ツール使用の追加トークン）</li>
+        <li><a href="https://www.anthropic.com/research/building-effective-agents">Building effective agents</a>（Anthropic Engineering）</li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s3-7" data-slide="3-7" data-slide-title="この章の持ち帰り">
+    <h3>3-7. この章の持ち帰り</h3>
+    <p>ツールの落とし穴を知っているかどうかで、<strong>「なぜか動かない」に費やす時間が変わります</strong>。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>覚えること</th><th>仕事での効き目</th><th>具体的な操作</th></tr></thead>
+        <tbody>
+          <tr><td><strong>この章は図 1-1 の核を Claude Code の部品名で覚える章</strong></td><td>エージェントループ＝3-1、ハーネス＝3-2、LLM＝3-3、ツール使用＝3-4・3-5 と対応づけておけば、数値やツール名が変わっても読み替えられる</td><td>冒頭の対応表、<a href="#s3-6">3-6</a></td></tr>
+          <tr><td><strong>モデルは選ぶだけで、実行しない</strong></td><td>止める・制限する・戻すはすべてハーネス側にある。「絶対に守らせたいこと」を CLAUDE.md に書いても効かない理由</td><td>強制はフックと <code>deny</code>（<a href="ch05-guardrails.html">5 章</a>）</td></tr>
+          <tr><td><strong>Bash はコマンドごとに別プロセス</strong></td><td><code>export</code> や venv の有効化が引き継がれない。「環境変数を設定したのに効かない」の正体</td><td>起動前に有効化するか <code>CLAUDE_ENV_FILE</code> で渡す</td></tr>
+          <tr><td><strong>長いコマンドは停止せずバックグラウンドへ</strong></td><td>既定 2 分・上限 10 分を超えると裏に回る。放置すると消費が続く</td><td><code>/tasks</code> で確認・停止</td></tr>
+          <tr><td><strong>Read は大きいファイルを切る</strong></td><td>「読んだはずなのに後半を知らない」の原因。<code>PARTIAL view</code> の注記を見落とさない</td><td>範囲を指定して読ませ直す</td></tr>
+          <tr><td><strong>Grep と Glob は <code>.gitignore</code> の扱いが逆</strong></td><td>Glob が <code>node_modules</code> やビルド生成物まで拾い、無駄なトークンを食う</td><td>Glob はパターンを絞る（結果は最大 100 件）</td></tr>
+          <tr><td><strong>Edit は 3 検査を通らないと適用されない</strong></td><td>「編集しましたと言うのに変わっていない」を自分で切り分けられる</td><td>①読んでいる ②完全一致 ③一意</td></tr>
+          <tr><td><strong><code>/context</code> を見る癖をつける</strong></td><td>遅い・高い・指示が効かない、の 3 つとも最初に見るべきはここ</td><td><code>/context</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="label">意外と知られていない</span>
+      <p><strong>Bash の結果に載る出力は約 30,000 文字までです。</strong>超えるとファイルに保存されパスだけが返るため、長いログを丸ごと読ませたつもりが読まれていないことがあります。<code>BASH_MAX_OUTPUT_LENGTH</code> で最大 150,000 まで広げられますが、そもそも <code>grep</code> で絞ってから渡すほうが速くて安上がりです。</p>
+    </div>
+  </article>
+</section>
+
+</main>
+</div>
+
+<script src="assets/app.js"></script>
+<script src="assets/toc.js"></script>
+<script src="assets/nav.js"></script>
+</body>
+</html>

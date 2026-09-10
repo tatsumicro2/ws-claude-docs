@@ -8,8 +8,8 @@
   --surface-2:     #f7f6f2;
   --text:          #1f1e1b;
   --text-soft:     #4d4a43;
-  --muted:         #837d70;
-  --accent:        #c2593a;
+  --muted:         #66604f;
+  --accent:        #a3432a;
   --accent-soft:   #edd8cf;
   --accent-bg:     #fdf5f2;
   --ink:           #2c3d4f;
@@ -18,13 +18,21 @@
   --line-strong:   #d2ccbe;
   --code-bg:       #f6f5f1;
   --code-text:     #37332c;
-  --ok:            #4d7c4d;
+  --ok:            #3a6b3a;
 
-  --font-sans: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
-  --font-serif: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", Georgia, serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "BIZ UDPGothic", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+  --font-serif: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", Georgia, serif;   /* 表紙の大タイトルだけに使う装飾。読むための文字には使わない */
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 
-  --measure: 74ch;
+  /* 文字サイズは 4 段。12px 未満は作らない（STYLE.md） */
+  --fs-lg: 1.16rem;
+  --fs-md: 1rem;
+  --fs-sm: .875rem;
+  --fs-xs: .75rem;
+
+  /* コンテンツ幅は 2 種類だけ。章ページは --measure、表紙は --measure-wide */
+  --measure: 54rem;
+  --measure-wide: 64rem;
   --radius-s: 3px;
   --radius-m: 10px;
   --shadow-1: 0 1px 2px rgba(31,30,27,.04), 0 8px 24px -14px rgba(31,30,27,.16);
@@ -35,7 +43,6 @@ body{
   margin:0; background:var(--bg); color:var(--text);
   font-family:var(--font-sans); font-size:16px; line-height:1.85;
   -webkit-font-smoothing:antialiased;
-  font-feature-settings:"palt" 1;
 }
 
 /* ---------- Layout ---------- */
@@ -56,7 +63,7 @@ main{padding:0 clamp(1.1rem,4vw,4.5rem) 6rem; min-width:0}
   padding:clamp(3rem,9vw,6.5rem) 0 2.6rem; border-bottom:3px double var(--line-strong); margin-bottom:3rem;
 }
 .eyebrow{
-  font-family:var(--font-mono); font-size:.72rem; letter-spacing:.22em; text-transform:uppercase;
+  font-family:var(--font-mono); font-size:var(--fs-xs); letter-spacing:.22em; text-transform:uppercase;
   color:var(--accent); margin:0 0 1.1rem;
 }
 .masthead h1{
@@ -64,48 +71,50 @@ main{padding:0 clamp(1.1rem,4vw,4.5rem) 6rem; min-width:0}
   font-size:clamp(2.3rem,6.4vw,4.4rem); margin:0 0 1rem; letter-spacing:-.01em;
 }
 .masthead h1 em{font-style:normal; color:var(--accent)}
-.lede{font-size:clamp(1rem,1.5vw,1.16rem); color:var(--text-soft); max-width:60ch; margin:0 0 2rem}
+.lede{font-size:clamp(1rem,1.5vw,1.16rem); color:var(--text-soft); max-width:var(--measure); margin:0 0 2rem}
+.masthead{max-width:var(--measure-wide)}
 .meta-strip{
-  display:flex; flex-wrap:wrap; gap:.5rem 2rem; font-family:var(--font-mono); font-size:.76rem;
+  display:flex; flex-wrap:wrap; gap:.5rem 2rem; font-family:var(--font-mono); font-size:var(--fs-xs);
   color:var(--muted); border-top:1px solid var(--line); padding-top:1.1rem;
 }
 .meta-strip b{color:var(--text-soft); font-weight:600}
 
 /* ---------- TOC ---------- */
 .toc h2{
-  font-family:var(--font-mono); font-size:.7rem; letter-spacing:.2em; text-transform:uppercase;
+  font-family:var(--font-mono); font-size:var(--fs-xs); letter-spacing:.2em; text-transform:uppercase;
   color:var(--muted); margin:0 0 1rem; font-weight:600;
 }
 .toc ol{list-style:none; margin:0; padding:0; counter-reset:toc -1}
 .toc li{counter-increment:toc; margin:0 0 .1rem}
 .toc a{
   display:block; padding:.3rem .5rem .3rem 2.2rem; position:relative;
-  text-decoration:none; color:var(--text-soft); font-size:.87rem; line-height:1.45; border-radius:var(--radius-s);
+  text-decoration:none; color:var(--text-soft); font-size:var(--fs-sm); line-height:1.45; border-radius:var(--radius-s);
 }
 .toc a::before{
   content:counter(toc,decimal-leading-zero); position:absolute; left:.35rem; top:.3rem;
-  font-family:var(--font-mono); font-size:.68rem; color:var(--muted);
+  font-family:var(--font-mono); font-size:var(--fs-xs); color:var(--muted);
 }
 .toc a:hover{background:var(--accent-bg); color:var(--accent)}
 
 /* ---------- Chapters ---------- */
 .chapter{margin:0 0 5.5rem; scroll-margin-top:1.5rem}
+.chapter > *, .pager{max-width:var(--measure)}   /* 章ページの幅はここ 1 か所で決める */
 .chapter-head{display:flex; align-items:baseline; gap:1rem; margin:0 0 1.4rem; padding-bottom:.7rem; border-bottom:1px solid var(--line-strong)}
 .chapter-num{
-  font-family:var(--font-mono); font-size:.9rem; color:var(--accent); font-weight:700;
+  font-family:var(--font-mono); font-size:var(--fs-sm); color:var(--accent); font-weight:700;
   letter-spacing:.05em; flex:none;
 }
-.chapter h2{font-family:var(--font-serif); font-size:clamp(1.6rem,3.2vw,2.3rem); margin:0; font-weight:600; line-height:1.25}
-.chapter-lede{color:var(--text-soft); max-width:var(--measure); margin:0 0 2.2rem; font-size:1.02rem}
+.chapter h2{font-family:var(--font-sans); font-size:clamp(1.6rem,3.2vw,2.3rem); margin:0; font-weight:700; line-height:1.25}
+.chapter-lede{color:var(--text-soft); margin:0 0 2.2rem; font-size:var(--fs-md)}
 
 .slide{margin:0 0 2.6rem; scroll-margin-top:1.5rem}
 .slide > h3{
-  font-size:1.16rem; margin:0 0 .7rem; font-weight:700; line-height:1.5;
+  font-size:var(--fs-lg); margin:0 0 .7rem; font-weight:700; line-height:1.5;
   padding-left:.75rem; border-left:4px solid var(--accent);
 }
-.slide > h4{font-size:.98rem; margin:1.6rem 0 .5rem; font-weight:700; color:var(--text-soft)}
-.slide p{max-width:var(--measure); margin:0 0 1rem}
-ul,ol{max-width:var(--measure); padding-left:1.4rem; margin:0 0 1.1rem}
+.slide > h4{font-size:var(--fs-md); margin:1.6rem 0 .5rem; font-weight:700; color:var(--text-soft)}
+.slide p{margin:0 0 1rem}
+ul,ol{padding-left:1.4rem; margin:0 0 1.1rem}
 li{margin:0 0 .38rem}
 li::marker{color:var(--accent)}
 strong{font-weight:700}
@@ -113,17 +122,17 @@ a{color:var(--accent); text-underline-offset:2px}
 code{font-family:var(--font-mono); font-size:.86em; background:var(--code-bg); color:var(--code-text); padding:.12em .4em; border-radius:var(--radius-s)}
 pre{
   background:var(--code-bg); color:var(--code-text); padding:1rem 1.15rem; border-radius:var(--radius-m);
-  overflow-x:auto; font-family:var(--font-mono); font-size:.83rem; line-height:1.7; margin:0 0 1.2rem;
+  overflow-x:auto; font-family:var(--font-mono); font-size:var(--fs-sm); line-height:1.7; margin:0 0 1.2rem;
   border:1px solid var(--line);
 }
 pre code{background:none; padding:0; font-size:1em}
 
 /* ---------- Tables ---------- */
 .table-scroll{overflow-x:auto; margin:0 0 1.4rem; border:1px solid var(--line); border-radius:var(--radius-m); background:var(--surface)}
-table{border-collapse:collapse; width:100%; font-size:.88rem; line-height:1.65}
+table{border-collapse:collapse; width:100%; font-size:var(--fs-sm); line-height:1.65}
 th,td{text-align:left; padding:.62rem .9rem; border-bottom:1px solid var(--line); vertical-align:top}
 thead th{
-  background:var(--surface-2); font-size:.74rem; letter-spacing:.06em; text-transform:uppercase;
+  background:var(--surface-2); font-size:var(--fs-xs); letter-spacing:.06em; text-transform:uppercase;
   color:var(--muted); font-weight:700; white-space:nowrap; border-bottom:2px solid var(--line-strong);
 }
 tbody tr:last-child td{border-bottom:none}
@@ -133,11 +142,11 @@ td code{white-space:nowrap}
 /* ---------- Callouts ---------- */
 .note{
   border-left:3px solid var(--ink); background:var(--surface); padding:.9rem 1.1rem; border-radius:0 var(--radius-m) var(--radius-m) 0;
-  margin:0 0 1.3rem; max-width:var(--measure); font-size:.94rem; box-shadow:var(--shadow-1);
+  margin:0 0 1.3rem; font-size:var(--fs-md); box-shadow:var(--shadow-1);
 }
 .note.warn{border-left-color:var(--accent)}
 .note .label{
-  display:block; font-family:var(--font-mono); font-size:.68rem; letter-spacing:.16em; text-transform:uppercase;
+  display:block; font-family:var(--font-mono); font-size:var(--fs-xs); letter-spacing:.16em; text-transform:uppercase;
   color:var(--muted); margin-bottom:.3rem;
 }
 .note p:last-child{margin-bottom:0}
@@ -148,35 +157,35 @@ td code{white-space:nowrap}
   background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-m); padding:1rem 1.1rem;
   box-shadow:var(--shadow-1);
 }
-.card h5{margin:0 0 .4rem; font-size:.94rem; font-weight:700}
-.card p{margin:0; font-size:.86rem; color:var(--text-soft); line-height:1.7}
-.card .tag{font-family:var(--font-mono); font-size:.66rem; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); display:block; margin-bottom:.35rem}
+.card h5{margin:0 0 .4rem; font-size:var(--fs-md); font-weight:700}
+.card p{margin:0; font-size:var(--fs-sm); color:var(--text-soft); line-height:1.7}
+.card .tag{font-family:var(--font-mono); font-size:var(--fs-xs); letter-spacing:.12em; text-transform:uppercase; color:var(--accent); display:block; margin-bottom:.35rem}
 
 /* ---------- Source block ---------- */
 .src{
   margin:1.4rem 0 0; padding:.75rem 1rem; background:var(--surface-2); border:1px dashed var(--line-strong);
-  border-radius:var(--radius-m); font-size:.8rem; color:var(--muted); max-width:var(--measure);
+  border-radius:var(--radius-m); font-size:var(--fs-sm); color:var(--muted);
 }
-.src .label{font-family:var(--font-mono); font-size:.66rem; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin-right:.5rem}
+.src .label{font-family:var(--font-mono); font-size:var(--fs-xs); letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin-right:.5rem}
 .src ul{margin:.35rem 0 0; padding-left:1.1rem}
 .src li{margin:0 0 .18rem}
 .src a{color:var(--text-soft)}
 
 /* ---------- Figures ---------- */
 figure{margin:0 0 1.8rem; padding:1.4rem 1.2rem 1rem; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-m); box-shadow:var(--shadow-1)}
-figure svg{display:block; width:100%; height:auto; max-width:820px; margin:0 auto}
-figcaption{margin-top:.9rem; font-size:.8rem; color:var(--muted); text-align:center; line-height:1.6}
+figure svg{display:block; width:100%; height:auto; margin:0 auto}
+figcaption{margin-top:.9rem; font-size:var(--fs-xs); color:var(--muted); text-align:center; line-height:1.6}
 
 /* ---------- Misc ---------- */
 .try{
   margin:1.3rem 0 0; padding:.7rem .95rem .8rem; background:var(--accent-bg);
-  border:1px solid var(--accent-soft); border-radius:var(--radius-m); max-width:var(--measure);
+  border:1px solid var(--accent-soft); border-radius:var(--radius-m);
 }
 .try .label{
-  display:block; font-family:var(--font-mono); font-size:.66rem; letter-spacing:.16em;
+  display:block; font-family:var(--font-mono); font-size:var(--fs-xs); letter-spacing:.16em;
   text-transform:uppercase; color:var(--accent); margin-bottom:.35rem;
 }
-.try pre{margin:0; padding:.6rem .8rem; font-size:.79rem; line-height:1.65; background:var(--surface); border-color:var(--accent-soft)}
+.try pre{margin:0; padding:.6rem .8rem; font-size:var(--fs-sm); line-height:1.65; background:var(--surface); border-color:var(--accent-soft)}
 .try .code-wrap{position:relative; margin:0}
 .try .code-wrap + .code-wrap{margin-top:.4rem}
 .try .code-wrap pre{padding-right:.4rem}
@@ -196,10 +205,11 @@ figcaption{margin-top:.9rem; font-size:.8rem; color:var(--muted); text-align:cen
 .line-copy.done{opacity:1; color:var(--ok)}
 @media (hover: none){ .line-copy{opacity:.55} }
 .try pre + pre{margin-top:.4rem}
-.try p{margin:.45rem 0 0; font-size:.83rem; color:var(--text-soft)}
-.pill{display:inline-block; font-family:var(--font-mono); font-size:.7rem; letter-spacing:.08em; padding:.12rem .5rem; border-radius:999px; background:var(--accent-bg); color:var(--accent); border:1px solid var(--accent-soft); margin-right:.35rem}
+.try p{margin:.45rem 0 0; font-size:var(--fs-sm); color:var(--text-soft)}
+.muted{color:var(--muted)}
+.pill{display:inline-block; font-family:var(--font-mono); font-size:var(--fs-xs); letter-spacing:.08em; padding:.12rem .5rem; border-radius:999px; background:var(--accent-bg); color:var(--accent); border:1px solid var(--accent-soft); margin-right:.35rem}
 .divider{border:none; border-top:1px solid var(--line); margin:3rem 0}
-footer{border-top:3px double var(--line-strong); padding:2.5rem 0 1rem; margin-top:3rem; color:var(--muted); font-size:.85rem}
+footer{border-top:3px double var(--line-strong); padding:2.5rem 0 1rem; margin-top:3rem; color:var(--muted); font-size:var(--fs-sm); max-width:var(--measure)}
 footer a{color:var(--text-soft)}
 @media print{
   .line-copy{display:none}

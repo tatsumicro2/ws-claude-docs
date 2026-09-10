@@ -6,5 +6,5 @@
 
 # 生成物と分解前の原本。レビューは元ファイル側で行うので、差分表示と言語統計から外す
 claude-code-guide/dist/claude-code-guide.html  linguist-generated=true -diff
-claude-code-guide/_source/index.html  linguist-generated=true -diff
+claude-code-guide/assets/toc.js               linguist-generated=true
 claude-code-overview/dist/claude-code-overview.svg     linguist-generated=true

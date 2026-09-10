@@ -20,19 +20,19 @@ jobs:
 
       - name: JSON の構文
         run: |
-          python3 -m json.tool claude-code-guide/toc.json > /dev/null
+          python3 -m json.tool claude-code-guide/site.json > /dev/null
           python3 -m json.tool .claude/settings.json > /dev/null
 
-      - name: 生成物を再生成（ナビ・1 枚 HTML・概要図 SVG）
+      - name: 生成物を再生成（目次 toc.js・1 枚 HTML・概要図 SVG）
         run: |
-          python3 claude-code-guide/tools/build_nav.py
+          python3 claude-code-guide/tools/build_toc.py
           python3 claude-code-guide/tools/build_single.py
           python3 claude-code-overview/export.py --svg-only
 
       - name: 生成物がコミット内容と一致するか
         run: |
           if ! git diff --quiet; then
-            echo "::error::生成物が古い。手元で claude-code-guide/tools/build_nav.py と build_single.py（claude-code-overview を触った場合は claude-code-overview/export.py）を実行してコミットしてください"
+            echo "::error::生成物が古い。手元で claude-code-guide/tools/build_toc.py と build_single.py（claude-code-overview を触った場合は claude-code-overview/export.py）を実行してコミットしてください"
             git --no-pager diff --stat
             exit 1
           fi

@@ -20,7 +20,7 @@ fi
 OUT=$(python3 claude-code-guide/tools/check_docs.py 2>&1) && exit 0
 {
   echo "資料に未コミットの変更があり、check_docs.py が失敗している。"
-  echo "python3 claude-code-guide/tools/build_nav.py → python3 claude-code-guide/tools/check_docs.py を通してから終えること。"
+  echo "python3 claude-code-guide/tools/build_toc.py → python3 claude-code-guide/tools/check_docs.py を通してから終えること。"
   echo "$OUT"
 } >&2
 exit 2

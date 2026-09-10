@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>概要・セットアップ・基本操作 — Claude Code 体系的入門</title>
+<meta name="description" content="Claude Code は「LLM にツールを持たせ、ループで回すプログラム」です。全体像を 1 枚の図で示し、インストールから起動・コマンド・キー操作まで、最初の 1 日で必要なことをまとめます。">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/nav.css">
+</head>
+<body>
+<div class="wrap">
+
+<main>
+
+<nav class="crumb"><a href="index.html">Claude Code 体系的入門</a><span>/</span>第1章</nav>
+
+<section class="chapter" id="ch1" data-chapter="1">
+  <div class="chapter-head">
+    <span class="chapter-num">01</span>
+    <h1>概要・セットアップ・基本操作</h1>
+  </div>
+  <p class="chapter-lede">
+    Claude Code は、<strong>LLM にツールを持たせ、ループで回すプログラム</strong>です。この章では全体像を 1 枚の図で示し、インストールから起動・コマンド・キー操作まで、最初の 1 日で必要なことをまとめます。図のどの部分をどの章が扱うかも、ここで地図として渡します。
+  </p>
+
+  <div class="note">
+    <span class="label">原理との対応</span>
+    <p>この章は原理そのものではなく、図 1-1 の<strong>インターフェース</strong>（サーフェス・インストール・起動フラグ・コマンド・キー操作）の実装です。インターフェースは「コンテキストの最初の 1 行をどこから入れるか」で、<code>Esc</code> で止める・実行中に文章を送る（<a href="#s1-5">1-5</a>）は、エージェントループ（<a href="ch03-agent-loop-harness.html#p-loop">3-6 ループ</a>）の周回に人が途中から割り込む操作面にあたります。廃れないのは「副作用はループでしか起きず、権限はその直前で効く」という構造で、フラグ名・コマンド名・キー割り当て・モードの既定値はバージョンごとに変わります。</p>
+  </div>
+
+  <article class="slide" id="s1-1" data-slide="1-1" data-slide-title="Claude Code とは — AI エージェントのコア技術">
+    <h3>1-1. Claude Code とは — AI エージェントのコア技術</h3>
+    <p>Claude Code は Anthropic の agentic コーディングツールです。タスクを与えると<strong>「コンテキストを集め、行動し、結果を検証する」</strong>を必要なだけ繰り返し、コードベースを読み、複数ファイルを編集し、テストやビルドを実行して、自分の作業を確かめます。現在開いているファイルだけを見るインライン補完とは、動き方が根本から違います。</p>
+    <p>その構造は AI エージェント一般と同じで、<strong>LLM・コンテキストウィンドウ・ツール使用・エージェントループ</strong>の 4 つを核に、メモリ・ガードレール・拡張・観測性が取り囲んでいます。図の上段が一般的な用語、下段が Claude Code での対応です。</p>
+    <figure>
+      <svg viewBox="0 0 760 600" role="img" aria-label="AI エージェントのコア技術を体系的に示した 1 枚絵。中央にエージェントループがあり、コンテキストウィンドウ、LLM（推論エンジン）、ツール使用、実行環境の 4 つが矢印で循環し、その中央で検証と完了判定を行う。上に長期メモリ、下にガードレール（制御）、左にインターフェース（入口）、右に拡張とオーケストレーション、最下段に運用と観測性が配置されている。各要素の上段は一般的な AI エージェント用語、下段は Claude Code での対応する機能。">
+        <defs>
+          <marker id="ar-core" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <text x="8" y="20" font-size="11" style="fill:var(--text)">AI エージェントのコア技術と、Claude Code での実装</text>
+        <text x="752" y="20" font-size="9.5" text-anchor="end" style="fill:var(--muted)">上段＝一般的な用語 ／ 下段＝Claude Code での対応</text>
+
+        <!-- 長期メモリ -->
+        <rect x="166" y="40" width="428" height="56" rx="6" style="fill:var(--surface-2);stroke:var(--line-strong)" stroke-width="1"/>
+        <text x="180" y="58" font-size="11" font-weight="600" style="fill:var(--text)">長期メモリ（永続化）</text>
+        <text x="180" y="74" font-size="9" style="fill:var(--muted)">CLAUDE.md（プロジェクト／個人への指示）・自動メモリ・セッションの再開</text>
+        <text x="180" y="87" font-size="9" style="fill:var(--muted)">チェックポイント（巻き戻し）— 有限の短期記憶の外側に残すもの</text>
+
+        <!-- インターフェース -->
+        <rect x="8" y="110" width="140" height="320" rx="6" style="fill:var(--surface-2);stroke:var(--line-strong)" stroke-width="1"/>
+        <text x="22" y="130" font-size="11" font-weight="600" style="fill:var(--text)">インターフェース</text>
+        <text x="22" y="145" font-size="9" style="fill:var(--muted)">（入口と実行形態）</text>
+        <g font-size="9" style="fill:var(--text-soft)">
+          <text x="22" y="176">ユーザーとの対話</text>
+          <text x="22" y="204">ターミナル・IDE・</text>
+          <text x="22" y="217">デスクトップ・Web</text>
+          <text x="22" y="245">非対話実行（-p）</text>
+          <text x="22" y="273">CI/CD・GitHub Actions</text>
+          <text x="22" y="301">Agent SDK</text>
+          <text x="22" y="316">（同じループを組み込む）</text>
+        </g>
+
+        <!-- エージェントループ -->
+        <rect x="166" y="110" width="428" height="320" rx="8" style="fill:var(--accent-bg);stroke:var(--accent)" stroke-width="1.4"/>
+        <text x="216" y="128" font-size="10.5" font-weight="600" style="fill:var(--accent)">エージェントループ — 観察 → 推論 → 行動 → 検証を繰り返す</text>
+
+        <g style="fill:var(--surface);stroke:var(--accent)" stroke-width="1.3">
+          <rect x="182" y="140" width="198" height="74" rx="6"/>
+          <rect x="396" y="140" width="182" height="74" rx="6"/>
+          <rect x="396" y="316" width="182" height="74" rx="6"/>
+          <rect x="182" y="316" width="198" height="74" rx="6"/>
+        </g>
+        <g font-size="11" font-weight="600" style="fill:var(--text)">
+          <text x="194" y="158">コンテキストウィンドウ</text>
+          <text x="408" y="158">LLM（推論エンジン）</text>
+          <text x="408" y="334">ツール使用（tool use）</text>
+          <text x="194" y="334">実行環境（外界）</text>
+        </g>
+        <g font-size="8.5" style="fill:var(--muted)">
+          <text x="194" y="173">短期記憶。有限で、毎回まるごと送る</text>
+          <text x="194" y="188">システムプロンプト・指示・会話履歴・ツール結果</text>
+          <text x="194" y="201">自動圧縮・/compact・/clear</text>
+          <text x="408" y="173">状態を持たない。入力から次の行動を決める</text>
+          <text x="408" y="188">Claude モデル群・拡張思考・努力レベル</text>
+          <text x="408" y="201">計画・ツール選択・応答の生成</text>
+          <text x="408" y="349">モデルは構造化した「呼び出し」を返すだけ</text>
+          <text x="408" y="364">組み込みツール：Read・Edit・Bash・Grep・</text>
+          <text x="408" y="377">Glob・WebFetch・Agent（サブエージェント）</text>
+          <text x="194" y="349">ハーネスが実行し、副作用はここで起きる</text>
+          <text x="194" y="364">ファイル・シェル・Git・ブラウザ・Web</text>
+          <text x="194" y="377">外部サービス（MCP 経由）</text>
+        </g>
+
+        <g fill="none" stroke="currentColor" stroke-width="1.4" style="color:var(--accent)">
+          <path d="M380,177 H394" marker-end="url(#ar-core)"/>
+          <path d="M487,214 V314" marker-end="url(#ar-core)"/>
+          <path d="M396,353 H382" marker-end="url(#ar-core)"/>
+          <path d="M281,316 V216" marker-end="url(#ar-core)"/>
+        </g>
+        <g font-size="8.5" style="fill:var(--text-soft)">
+          <text x="496" y="258">呼び出し</text>
+          <text x="496" y="270">（tool_use）</text>
+          <text x="272" y="258" text-anchor="end">結果を追記</text>
+          <text x="272" y="270" text-anchor="end">（tool_result）</text>
+        </g>
+
+        <rect x="322" y="236" width="116" height="58" rx="6" stroke-dasharray="4 3" style="fill:var(--surface);stroke:var(--accent)" stroke-width="1.1"/>
+        <text x="380" y="254" font-size="10" font-weight="600" text-anchor="middle" style="fill:var(--text)">検証と完了判定</text>
+        <text x="380" y="269" font-size="8.5" text-anchor="middle" style="fill:var(--muted)">テスト・ビルド・差分で確認</text>
+        <text x="380" y="282" font-size="8.5" text-anchor="middle" style="fill:var(--muted)">通れば終了、失敗なら次の周回</text>
+
+        <text x="380" y="414" font-size="8.5" text-anchor="middle" style="fill:var(--muted)">停止条件：検証が通る ／ 人の確認が必要 ／ 上限（ターン数・コンテキスト）に達する</text>
+
+        <!-- メモリ → コンテキスト、入口 → ループ -->
+        <g fill="none" stroke="currentColor" stroke-width="1.2" style="color:var(--muted)">
+          <path d="M200,96 V138" marker-end="url(#ar-core)"/>
+          <path d="M148,177 H180" marker-end="url(#ar-core)"/>
+          <path d="M610,177 H580" marker-end="url(#ar-core)"/>
+          <path d="M610,353 H580" marker-end="url(#ar-core)"/>
+          <path d="M560,446 V392" stroke-dasharray="4 3" marker-end="url(#ar-core)"/>
+        </g>
+        <text x="208" y="107" font-size="8.5" style="fill:var(--muted)">毎セッション読み込む</text>
+
+        <!-- ガードレール -->
+        <rect x="166" y="446" width="428" height="56" rx="6" style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1"/>
+        <text x="180" y="464" font-size="11" font-weight="600" style="fill:var(--ink)">ガードレール（制御）— 実行の前に割り込む</text>
+        <text x="180" y="480" font-size="9" style="fill:var(--text-soft)">権限モードと権限ルール・ヒューマンインザループ（確認）・サンドボックス</text>
+        <text x="180" y="493" font-size="9" style="fill:var(--text-soft)">フック（決められた位置で決定論的に介入する。モデルの判断に依存しない）</text>
+
+        <!-- 拡張とオーケストレーション -->
+        <rect x="610" y="40" width="142" height="462" rx="6" style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1"/>
+        <text x="624" y="58" font-size="11" font-weight="600" style="fill:var(--ink)">拡張と</text>
+        <text x="624" y="72" font-size="11" font-weight="600" style="fill:var(--ink)">オーケストレーション</text>
+        <g style="fill:var(--surface);stroke:var(--ink)" stroke-width="1">
+          <rect x="620" y="86" width="122" height="94" rx="5"/>
+          <rect x="620" y="190" width="122" height="94" rx="5"/>
+          <rect x="620" y="294" width="122" height="94" rx="5"/>
+          <rect x="620" y="398" width="122" height="94" rx="5"/>
+        </g>
+        <g font-size="10" font-weight="600" style="fill:var(--text)">
+          <text x="630" y="104">マルチエージェント</text>
+          <text x="630" y="208">スキル（手順知識）</text>
+          <text x="630" y="312">MCP（外部接続）</text>
+          <text x="630" y="416">プラグイン</text>
+        </g>
+        <g font-size="8.5" style="fill:var(--muted)">
+          <text x="630" y="120">サブエージェント：</text>
+          <text x="630" y="132">委譲・並列実行・</text>
+          <text x="630" y="144">コンテキストの分離</text>
+          <text x="630" y="160">要約だけを親に返す</text>
+          <text x="630" y="224">必要になった時点で</text>
+          <text x="630" y="236">読み込む手順書</text>
+          <text x="630" y="252">Skills・スラッシュ</text>
+          <text x="630" y="264">コマンド</text>
+          <text x="630" y="328">外部ツールとデータを</text>
+          <text x="630" y="340">つなぐ標準プロトコル</text>
+          <text x="630" y="356">MCP サーバー</text>
+          <text x="630" y="368">（GitHub・DB・SaaS）</text>
+          <text x="630" y="432">上記をまとめて</text>
+          <text x="630" y="444">配布・共有する単位</text>
+          <text x="630" y="460">マーケットプレイス</text>
+        </g>
+
+        <!-- 運用と観測性 -->
+        <rect x="8" y="518" width="744" height="52" rx="6" style="fill:var(--surface-2);stroke:var(--line-strong)" stroke-width="1"/>
+        <text x="22" y="536" font-size="11" font-weight="600" style="fill:var(--text)">運用と観測性 — ループの外から測る</text>
+        <text x="22" y="552" font-size="9" style="fill:var(--muted)">トークンとコストの計測（/cost・/usage）・進行状況の可視化・OpenTelemetry・評価・自動実行の監視。ループのどこで何が消費されたかを見て、上の各要素を調整する</text>
+
+        <text x="380" y="590" font-size="9" text-anchor="middle" style="fill:var(--muted)">出典：Anthropic「Building effective agents」「Claude Code の仕組み」、Claude API ツール使用ドキュメント</text>
+      </svg>
+      <figcaption>図 1-1：AI エージェントのコア技術と、Claude Code での実装。中央のループが核で、他の要素はすべてループに何かを足すか、ループを制御するか、ループを測るもの。</figcaption>
+    </figure>
+
+    <h4>この資料の地図</h4>
+    <p>この資料は 6 章構成で、図の核と、それを囲む要素のうち<strong>日々の使い方に直結する部分</strong>を扱います。図の右側の「拡張とオーケストレーション」（サブエージェント・MCP・プラグイン）と CI/CD・Agent SDK は、この資料の範囲外です。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>図の要素</th><th>扱う章</th></tr></thead>
+        <tbody>
+          <tr><td><strong>インターフェース</strong> — サーフェス、起動、コマンド、キー操作</td><td>この章（<a href="#s1-3">1-3</a> 〜 <a href="#s1-6">1-6</a>）</td></tr>
+          <tr><td><strong>長期メモリ</strong>のうち人が書く指示 — CLAUDE.md・ルール・スキル・プロンプト</td><td><a href="ch02-skills-prompts-rules.html">2 スキル・プロンプト・ルール</a></td></tr>
+          <tr><td><strong>核</strong> — エージェントループ・LLM・ツール使用・ハーネス</td><td><a href="ch03-agent-loop-harness.html">3 エージェントループとハーネス</a>（製品が変わっても残る事実は <a href="ch03-agent-loop-harness.html#s3-6">3-6</a>）</td></tr>
+          <tr><td><strong>長期メモリ</strong>のうち会話の保存 — セッション・チェックポイント</td><td><a href="ch04-sessions-checkpoints.html">4 セッションとチェックポイント</a></td></tr>
+          <tr><td><strong>ガードレール</strong> — 権限モード・権限ルール・サンドボックス・フック・管理設定</td><td><a href="ch05-guardrails.html">5 ガードレール機能</a></td></tr>
+          <tr><td><strong>コンテキストウィンドウ</strong>と<strong>運用と観測性</strong> — コンテキスト管理・コスト・プロンプトキャッシュ</td><td><a href="ch06-context-cost-caching.html">6 コンテキスト管理・コスト・プロンプトキャッシュ</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/overview">概要</a> / <a href="https://code.claude.com/docs/ja/how-claude-code-works">Claude Code の仕組み</a> / <a href="https://www.anthropic.com/research/building-effective-agents">Building effective agents</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s1-2" data-slide="1-2" data-slide-title="この資料の立場と情報ソース">
+    <h3>1-2. この資料の立場と情報ソース</h3>
+    <p>この資料は、Claude Code を<strong>コマンドの集まりとしてではなく、AI エージェントの一実装として</strong>説明します。主軸に置くのは、Claude Code に限らず <strong>LLM を使うどの道具にも通用する基礎技術</strong>です。コマンドや固有の用語は、その基礎技術が製品にどう現れているかを示す例として扱います。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>区分</th><th>何か</th><th>扱い</th></tr></thead>
+        <tbody>
+          <tr><td><strong>コア技術（主軸）</strong></td><td>LLM の性質、コンテキスト、ツール使用、エージェントループ、記憶と分離、制御</td><td>図 1-1 で全体を示し、<a href="ch03-agent-loop-harness.html#s3-6">3-6</a> で原理として説明する。製品が変わっても変わらない部分</td></tr>
+          <tr><td><strong>周辺技術</strong></td><td>指示の与え方、セッション、権限とフック、コンテキスト管理</td><td>コア技術の応用として扱う。「コンテキストとループのどこを触るのか」を先に、操作を後に</td></tr>
+          <tr><td><strong>実装の詳細</strong></td><td>コマンド名、フラグ、バージョン依存の数値、画面の操作</td><td>必要な分だけ載せる。数値には「v2.1.x 以降」など条件を添え、<strong>暗記は求めない</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>原理から入ると、<strong>限界を予測できる</strong>（「この依頼はコンテキストに入らない」と試す前に分かる）、<strong>指示を設計できる</strong>（何をコンテキストに置き、何をループの外で強制するかを決められる）、<strong>知識を持ち越せる</strong>（モデル・コンテキスト・ハーネスの分業はどのエージェントツールでも同じ）の 3 つが変わります。前提知識はターミナル操作と Git の基礎だけで、機械学習の知識は要りません。</p>
+
+    <h4>情報ソースの優先順位</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>優先度</th><th>ソース</th><th>位置づけ</th></tr></thead>
+        <tbody>
+          <tr><td>1（一次）</td><td><a href="https://code.claude.com/docs/ja/overview">Claude Code 公式ドキュメント（日本語）</a> と <a href="https://code.claude.com/docs/en/overview">英語版</a></td><td>本資料の記述はほぼすべてここに対応する。<strong>日本語版が古い箇所は英語版に従う</strong></td></tr>
+          <tr><td>1（一次）</td><td><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview">Claude API ドキュメント</a></td><td>ツール使用など、Claude Code の下にある API の仕様</td></tr>
+          <tr><td>2（一次）</td><td><a href="https://code.claude.com/docs/llms.txt">公式ドキュメント索引 <code>llms.txt</code></a></td><td>全ページの機械可読な一覧。Claude 自身に最新仕様を引かせるときに使う</td></tr>
+          <tr><td>3（一次）</td><td><a href="https://claude.com/blog">Anthropic 公式ブログ / Engineering</a></td><td>設計思想・運用パターンの解説</td></tr>
+          <tr><td>4（準公式）</td><td><a href="https://agentskills.io">Agent Skills 標準</a>、<a href="https://modelcontextprotocol.io/">Model Context Protocol</a>、<a href="https://anthropic.skilljar.com/">Anthropic Academy</a></td><td>Anthropic 発のオープン標準と公式トレーニング</td></tr>
+          <tr><td>5（コミュニティ）</td><td>awesome 系リポジトリ、個人のドキュメントサイト、Zenn / Qiita</td><td><strong>非公式</strong>。事例収集用。仕様の根拠には使わない。配布されるスキル・フック・MCP は、あなたの権限で任意のコードを実行しうるので必ず中身を読む</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>記述の確度</h4>
+    <p>Claude Code の内部実装は公開されていません。本資料の記述は次の 3 段階のどれかで、<strong>既定は「文書化」</strong>です。それ以外は本文でその旨を明記します。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>確度</th><th>意味</th><th>本文での扱い</th></tr></thead>
+        <tbody>
+          <tr><td><strong>文書化</strong></td><td>公式ドキュメントに書かれている挙動</td><td>既定。出典を Source ブロックに添える</td></tr>
+          <tr><td><strong>実測</strong></td><td>手元で観測した数値・挙動</td><td>「実測」と明記し、日付とモデルを添える</td></tr>
+          <tr><td><strong>類推</strong></td><td>公開されている他のエージェント実装や論文からの推定</td><td>「類推」と明記。<strong>仕様の根拠にはしない</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note warn">
+      <span class="label">注意</span>
+      <p><strong>日本語版ドキュメントは英語版より遅れることがあります。</strong>本資料の作成時にも、権限モードの既定・非対話実行時の挙動・自動メモリの保存対象など、複数の箇所で両者が食い違っていました。食い違う場合は英語版が正として扱い、該当箇所に注記を添えています。Claude Code は更新が速く、本資料は <strong>2026 年 8 月時点</strong>の公式ドキュメントに基づきます。実運用前に該当ページで最新仕様を確認してください。</p>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/overview">概要 — Claude Code Docs</a> / <a href="https://code.claude.com/docs/llms.txt">code.claude.com/docs/llms.txt</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s1-3" data-slide="1-3" data-slide-title="インストールと最初の起動">
+    <h3>1-3. インストールと最初の起動</h3>
+    <h4>ネイティブインストール（推奨）</h4>
+    <pre><code># macOS / Linux / WSL
+curl -fsSL https://claude.ai/install.sh | bash
+
+# Windows PowerShell
+irm https://claude.ai/install.ps1 | iex</code></pre>
+    <h4>パッケージマネージャ経由</h4>
+    <pre><code>brew install --cask claude-code        # Homebrew（安定版チャネル）
+winget install Anthropic.ClaudeCode    # WinGet</code></pre>
+    <h4>起動</h4>
+    <pre><code>cd your-project
+claude                # 対話セッションを開始（初回はログインを促される）</code></pre>
+    <ul>
+      <li>ネイティブインストールは<strong>バックグラウンドで自動更新</strong>されます。Homebrew / WinGet 版は手動更新が必要です。</li>
+      <li>ほとんどのサーフェスで Claude サブスクリプション、または Anthropic Console アカウントが必要です。</li>
+      <li>導入直後は <code>/init</code> で CLAUDE.md を生成し、<code>/doctor</code> でセットアップを点検するのが定石です。</li>
+    </ul>
+    <div class="try">
+      <span class="label">試してみる：起動直後の 2 手</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="/init">/init      # CLAUDE.md のたたき台を生成</span><span class="cmd" data-copy="/doctor">/doctor    # インストールと設定を点検</span></code></pre></div>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/quickstart">クイックスタート</a> / <a href="https://code.claude.com/docs/ja/setup">高度なセットアップ</a> / <a href="https://code.claude.com/docs/ja/troubleshoot-install">インストールのトラブルシューティング</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s1-4" data-slide="1-4" data-slide-title="CLI の起動パターンと主要フラグ">
+    <h3>1-4. CLI の起動パターンと主要フラグ</h3>
+    <pre><code>claude                        # 対話セッション
+claude "テストを直して"         # 初期プロンプト付きで起動
+claude -p "…"                 # 非対話（print）モード：スクリプト・パイプ向け
+claude --continue             # 直前のセッションを再開
+claude --resume               # セッションを選んで再開
+claude --model opus           # モデル指定
+claude --permission-mode plan # 権限モード指定で起動
+claude --worktree             # 隔離した git worktree で起動
+tail -200 app.log | claude -p "異常があれば教えて"   # パイプ入力</code></pre>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>用途</th><th>代表フラグ</th></tr></thead>
+        <tbody>
+          <tr><td>実行制御</td><td><code>--print/-p</code> <code>--output-format</code>(text/json/stream-json) <code>--max-turns</code> <code>--max-budget-usd</code></td></tr>
+          <tr><td>モデル・推論</td><td><code>--model</code> <code>--effort</code> <code>--fallback-model</code></td></tr>
+          <tr><td>権限・ツール</td><td><code>--permission-mode</code> <code>--allowedTools</code> <code>--disallowedTools</code> <code>--tools</code> ／ <code>--dangerously-skip-permissions</code>（⚠ すべての確認を飛ばす。隔離環境以外では使わない。<a href="ch05-guardrails.html#s5-2">5-2</a>）</td></tr>
+          <tr><td>コンテキスト</td><td><code>--add-dir</code> <code>--settings</code> <code>--setting-sources</code> <code>--append-system-prompt</code> <code>--bare</code>（フック・スキル・CLAUDE.md の自動検出を止める。スクリプト向け）</td></tr>
+          <tr><td>セッション</td><td><code>--session-id</code> <code>--fork-session</code> <code>--from-pr</code> <code>--name</code>（<a href="ch04-sessions-checkpoints.html#s4-1">4-1</a>）</td></tr>
+          <tr><td>診断</td><td><code>--debug</code> <code>--verbose</code> <code>--safe-mode</code> <code>--version</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="src"><span class="label">Source</span><ul><li><a href="https://code.claude.com/docs/ja/cli-reference">CLI リファレンス（全コマンド・全フラグ）</a> / <a href="https://code.claude.com/docs/ja/headless">非対話モード</a></li></ul></div>
+  </article>
+
+  <article class="slide" id="s1-5" data-slide="1-5" data-slide-title="コマンドとキー操作">
+    <h3>1-5. コマンドとキー操作</h3>
+    <p>セッション内で <code>/</code> を打つと一覧が出ます。コマンドには 3 種類あります。<strong>組み込みコマンド</strong>（CLI に実装された固定動作）、<strong>バンドルされたスキル</strong>（<code>/code-review</code>、<code>/batch</code>、<code>/debug</code> など。中身はプロンプト）、<strong>バンドルされたワークフロー</strong>です。自作のスキル（<a href="ch02-skills-prompts-rules.html#s2-6">2-6</a>）も同じ <code>/名前</code> で呼べます。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>場面</th><th>コマンド</th></tr></thead>
+        <tbody>
+          <tr><td>初期セットアップ</td><td><code>/init</code>（CLAUDE.md 生成）<code>/memory</code> <code>/permissions</code> <code>/doctor</code> <code>/config</code> <code>/terminal-setup</code></td></tr>
+          <tr><td>タスク中</td><td><code>/plan</code> <code>/model</code> <code>/effort</code> <code>/context</code> <code>/compact</code> <code>/btw</code>（脇道質問）</td></tr>
+          <tr><td>レビュー</td><td><code>/diff</code> <code>/code-review</code> <code>/review</code>(PR) <code>/security-review</code> <code>/simplify</code></td></tr>
+          <tr><td>セッション管理</td><td><code>/clear</code> <code>/resume</code> <code>/branch</code> <code>/fork</code> <code>/rename</code> <code>/export</code> <code>/rewind</code> <code>/recap</code></td></tr>
+          <tr><td>拡張・設定の管理</td><td><code>/skills</code> <code>/hooks</code> <code>/permissions</code> <code>/reload-skills</code></td></tr>
+          <tr><td>運用・状況確認</td><td><code>/status</code> <code>/usage</code> <code>/cost</code> <code>/stats</code> <code>/insights</code> <code>/statusline</code></td></tr>
+          <tr><td>困ったとき</td><td><code>/doctor</code> <code>/debug</code> <code>/feedback</code> <code>/help</code> <code>/release-notes</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>対話モードのキー操作</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>キー</th><th>動作</th></tr></thead>
+        <tbody>
+          <tr><td><code>Esc</code></td><td>実行中のアクションを即停止（コンテキストは保持）</td></tr>
+          <tr><td><code>Esc</code> ×2</td><td>巻き戻しメニュー（<code>/rewind</code> と同じ）。<strong>入力欄が空のときだけ</strong>。文字が残っているときは入力のクリアになる</td></tr>
+          <tr><td><code>Shift+Tab</code></td><td>権限モードの切り替え（<a href="ch05-guardrails.html#s5-2">5-2</a>）</td></tr>
+          <tr><td><code>Ctrl+O</code></td><td><strong>トランスクリプトビューアの開閉</strong>。ツール呼び出しや思考を含む全履歴を遡れる（閉じるのは <code>Esc</code>／もう一度 <code>Ctrl+O</code>）</td></tr>
+          <tr><td><code>Ctrl+B</code></td><td>実行中のタスクをバックグラウンドに送る</td></tr>
+          <tr><td><code>Ctrl+G</code></td><td>入力中の内容を既定のテキストエディタで開く</td></tr>
+          <tr><td><code>Ctrl+R</code></td><td>コマンド履歴の逆順検索</td></tr>
+          <tr><td><code>Option/Alt+T</code></td><td>拡張思考のオン・オフ</td></tr>
+          <tr><td><code>Shift+Enter</code></td><td>改行（未対応ターミナルは <code>/terminal-setup</code>）</td></tr>
+          <tr><td><code>!</code> プレフィックス</td><td>シェルモード。v2.1.186 以降は出力が届くと Claude が<strong>自動で応答する</strong>（通常のプロンプトと同じ課金。旧挙動に戻すには設定 <code>respondToBashCommands: false</code>）</td></tr>
+          <tr><td><code>@</code> / <code>#</code></td><td>ファイル参照 / メモリへの追記</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Vim モード（<code>/config</code> → エディタモード）、フルスクリーン描画（<code>/tui fullscreen</code>）、キーバインドのカスタマイズ（<code>~/.claude/keybindings.json</code>）も利用できます。</p>
+    <div class="try">
+      <span class="label">試してみる：キー操作を体験する</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="/help">/help          # コマンド一覧を表示</span><span class="cmd" data-copy="!git status">!git status    # 「!」でシェルモード。出力が次のメッセージに添えられる</span></code></pre></div>
+      <p><code>Shift+Tab</code>（権限モード切替）、<code>Esc</code> 2 回（巻き戻し）、<code>Ctrl+O</code>（トランスクリプトを開いて <code>Esc</code> で閉じる）も試してください。</p>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/commands">コマンドリファレンス</a> / <a href="https://code.claude.com/docs/ja/interactive-mode">インタラクティブモード</a> / <a href="https://code.claude.com/docs/ja/keybindings">キーボードショートカット</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s1-6" data-slide="1-6" data-slide-title="サーフェスと用途マップ">
+    <h3>1-6. サーフェスと用途マップ</h3>
+    <p>同じエンジンが複数の「サーフェス（実行面）」で動きます。CLAUDE.md・設定・スキルはサーフェス間で共通に機能します。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>サーフェス</th><th>実行環境</th><th>特徴</th><th>主な用途</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Terminal（CLI）</strong></td><td>ローカル</td><td>機能が最も豊富。パイプ・スクリプト化が可能</td><td>日常開発の基本形。本資料の基準</td></tr>
+          <tr><td><strong>VS Code / Cursor 拡張</strong></td><td>ローカル</td><td>インライン差分、@メンション、プラン確認</td><td>エディタ内で完結させたい場合</td></tr>
+          <tr><td><strong>JetBrains プラグイン</strong></td><td>ローカル</td><td>IntelliJ / PyCharm / WebStorm 等。CLI が別途必要</td><td>JetBrains 系 IDE 利用者</td></tr>
+          <tr><td><strong>Desktop アプリ</strong></td><td>ローカル</td><td>並列セッション（Git 分離）、視覚的な差分レビュー</td><td>複数タスクの同時進行</td></tr>
+          <tr><td><strong>Web（claude.ai/code）</strong></td><td>クラウド</td><td>Anthropic 管理 VM 上で実行。ローカル環境不要</td><td>長時間タスク、外出先</td></tr>
+          <tr><td><strong>モバイル</strong></td><td>リモートコントロール</td><td>タスクの起動・監視・操舵</td><td>離席中の確認</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h4>用途マップ</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>やりたいこと</th><th>手段</th></tr></thead>
+        <tbody>
+          <tr><td>機能追加・バグ修正</td><td>対話セッション（＋ Plan Mode）</td></tr>
+          <tr><td>後回しにしていた雑務（テスト作成、Lint 修正、依存更新）</td><td><code>claude "…"</code> でワンショット依頼</td></tr>
+          <tr><td>コミット / PR 作成</td><td>git 連携。<code>gh</code> CLI が入っていれば PR まで作れる</td></tr>
+          <tr><td>ログ・出力の調査</td><td>パイプで渡す <code>… | claude -p "…"</code></td></tr>
+          <tr><td>チーム標準の手順化</td><td>CLAUDE.md ＋ スキル ＋ フック（<a href="ch02-skills-prompts-rules.html">2 章</a>・<a href="ch05-guardrails.html#s5-6">5-6</a>）</td></tr>
+          <tr><td>危ない操作を機械的に止める</td><td>権限ルールとフック（<a href="ch05-guardrails.html">5 章</a>）</td></tr>
+          <tr><td>外部サービス連携、CI での自動化、独自エージェント</td><td>MCP サーバー、<code>claude -p</code> と GitHub Actions、Agent SDK。本資料の範囲外（公式ドキュメント参照）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="try">
+      <span class="label">試してみる：ワンショット依頼</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="claude &quot;このリポジトリの構成と主要なエントリポイントを3行で説明して&quot;">claude "このリポジトリの構成と主要なエントリポイントを3行で説明して"</span></code></pre></div>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/overview">概要 — Claude Code をどこでも使用する</a> / <a href="https://code.claude.com/docs/ja/common-workflows">一般的なワークフロー</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s1-7" data-slide="1-7" data-slide-title="用語の早見表">
+    <h3>1-7. 用語の早見表</h3>
+    <p>公式用語集（<a href="https://code.claude.com/docs/ja/glossary">Glossary</a>）から、本資料で繰り返し使う語を抜き出しました。用語はどれも図 1-1 の核（LLM・コンテキストウィンドウ・ツール使用・エージェントループ）か、それを囲む要素のどれかに付いた<strong>名前</strong>です。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>用語</th><th>意味</th><th>本資料</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Agentic loop</strong></td><td>コンテキスト収集 → アクション実行 → 結果検証の反復</td><td><a href="ch03-agent-loop-harness.html#s3-1">3-1</a></td></tr>
+          <tr><td><strong>Agentic harness</strong></td><td>言語モデルを実用的なエージェントに変える、ツール・コンテキスト管理・実行環境の総体。Claude Code そのもの</td><td><a href="ch03-agent-loop-harness.html#s3-2">3-2</a></td></tr>
+          <tr><td><strong>Context window</strong></td><td>1 セッションでモデルが保持できるトークンの総量</td><td><a href="ch06-context-cost-caching.html#s6-1">6-1</a></td></tr>
+          <tr><td><strong>Compaction</strong></td><td>コンテキストが逼迫したときに会話を要約して空きを作る処理</td><td><a href="ch06-context-cost-caching.html#s6-6">6-6</a></td></tr>
+          <tr><td><strong>Turn</strong></td><td>ユーザーの 1 プロンプトに対する Claude の一連の応答</td><td><a href="ch03-agent-loop-harness.html#s3-1">3-1</a></td></tr>
+          <tr><td><strong>Session</strong></td><td>ディレクトリに紐づく 1 つの会話。独自のコンテキストウィンドウを持ち、再開・分岐できる</td><td><a href="ch04-sessions-checkpoints.html#s4-1">4-1</a></td></tr>
+          <tr><td><strong>Checkpoint</strong></td><td>プロンプト送信ごとに作られる復元点。<code>/rewind</code> で戻す。git とは別物</td><td><a href="ch04-sessions-checkpoints.html#s4-2">4-2</a></td></tr>
+          <tr><td><strong>Effort level</strong></td><td>各ターンの推論の深さ。利用できる値はモデルによって異なる</td><td><a href="ch03-agent-loop-harness.html#s3-3">3-3</a></td></tr>
+          <tr><td><strong>Tool / Tool use</strong></td><td>Claude が実行できる操作と、LLM とハーネスをつなぐ往復（tool_use / tool_result）</td><td><a href="ch03-agent-loop-harness.html#s3-4">3-4</a></td></tr>
+          <tr><td><strong>CLAUDE.md / Rules</strong></td><td>毎セッション読み込まれる永続的な指示ファイルと、パス限定できる指示ファイル群</td><td><a href="ch02-skills-prompts-rules.html#s2-2">2-2</a> / <a href="ch02-skills-prompts-rules.html#s2-3">2-3</a></td></tr>
+          <tr><td><strong>Auto memory</strong></td><td>Claude が自ら蓄積する学習メモ</td><td><a href="ch02-skills-prompts-rules.html#s2-4">2-4</a></td></tr>
+          <tr><td><strong>Skill / Command</strong></td><td><code>SKILL.md</code> による再利用可能な手順。<code>/名前</code> で起動。公式は「Slash」を外して Command と呼ぶ</td><td><a href="ch02-skills-prompts-rules.html#s2-6">2-6</a></td></tr>
+          <tr><td><strong>フロントマター</strong></td><td>Markdown 冒頭を <code>---</code> で挟んだ YAML の設定ブロック。スキル・ルールの挙動を指定する</td><td><a href="ch02-skills-prompts-rules.html#s2-7">2-7</a></td></tr>
+          <tr><td><strong>Permission mode / rule</strong></td><td>確認の頻度を決めるベースラインと、ツール名と引数パターンで許可・確認・拒否を決める設定</td><td><a href="ch05-guardrails.html#s5-2">5-2</a> / <a href="ch05-guardrails.html#s5-4">5-4</a></td></tr>
+          <tr><td><strong>Hook</strong></td><td>ライフサイクルイベントで実行されるコマンド／HTTP／プロンプト</td><td><a href="ch05-guardrails.html#s5-6">5-6</a></td></tr>
+          <tr><td><strong>Managed settings</strong></td><td>組織が配布し、上書きできない設定</td><td><a href="ch05-guardrails.html#s5-8">5-8</a></td></tr>
+          <tr><td><strong>Sandboxing</strong></td><td>Bash 実行のファイルシステム・ネットワーク分離</td><td><a href="ch05-guardrails.html#s5-5">5-5</a></td></tr>
+          <tr><td><strong>Prompt caching</strong></td><td>リクエスト先頭（プレフィックス）が前回と一致する部分を再利用し、入力コストを下げる仕組み</td><td><a href="ch06-context-cost-caching.html#s6-3">6-3</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h4>改称された用語</h4>
+    <p>古い記事に出てきますが、公式は現在の名前を使っています。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>古い用語</th><th>現在の呼び方</th><th>注記</th></tr></thead>
+        <tbody>
+          <tr><td>Headless mode</td><td><strong>Non-interactive mode</strong></td><td>同じ <code>-p</code> フラグ、同じ動作</td></tr>
+          <tr><td>Custom commands</td><td><strong>Skills</strong></td><td><code>.claude/commands/</code> のファイルは引き続き機能する</td></tr>
+          <tr><td>Slash commands</td><td><strong>Commands</strong></td><td>製品表記から「Slash」を削除</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="src"><span class="label">Source</span><ul><li><a href="https://code.claude.com/docs/ja/glossary">用語集 — Claude Code Docs</a></li></ul></div>
+  </article>
+
+  <article class="slide" id="s1-8" data-slide="1-8" data-slide-title="この章の持ち帰り">
+    <h3>1-8. この章の持ち帰り</h3>
+    <p>日々の生産性はこの層でほぼ決まります。<strong>覚えるキーは 3 つ、フラグは 2 つ</strong>で足ります。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>覚えること</th><th>仕事での効き目</th><th>具体的な操作</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Claude Code は「LLM ＋ ツール ＋ ループ」。他の要素はすべてループに足すか、制御するか、測るもの</strong></td><td>新しい機能が出ても図 1-1 のどこかに位置づけられる。別のエージェントツールに移っても知識が持ち越せる</td><td>図 1-1、<a href="ch03-agent-loop-harness.html#s3-6">3-6</a> の原理</td></tr>
+          <tr><td><strong><code>Shift+Tab</code> で権限モードを回す</strong></td><td>確認ダイアログの頻度を作業内容に合わせて即座に変えられる。日常は acceptEdits が現実的</td><td>default → acceptEdits → plan</td></tr>
+          <tr><td><strong><code>Esc</code> は「止める」、<code>Esc</code> 2 回は「戻す」</strong></td><td>暴走を 1 打鍵で止められる安心感が、任せられる範囲を広げる。コンテキストは保持される</td><td><code>Esc</code> / <code>Esc</code> ×2（＝<code>/rewind</code>）</td></tr>
+          <tr><td><strong><code>Ctrl+O</code> でトランスクリプトを読む</strong></td><td>「なぜその結論になったか」を追える唯一の手段。レビューや障害報告で根拠を示せる</td><td><code>Ctrl+O</code>（<code>Esc</code> で閉じる）</td></tr>
+          <tr><td><strong>ログ調査はパイプで一撃</strong></td><td>ファイルに保存して読ませる手間が要らない。障害対応の初動が速くなる</td><td><code>tail -200 app.log | claude -p "異常があれば教えて"</code></td></tr>
+          <tr><td><strong>調査だけさせたいときは plan で起動</strong></td><td>「勝手に直された」が起きない。設計レビュー前の調査に向く</td><td><code>claude --permission-mode plan</code></td></tr>
+          <tr><td><strong>仕様で迷ったら公式を Claude 自身に読ませる</strong></td><td>全ページの機械可読な索引 <code>llms.txt</code> がある。二次情報の古さに悩まされない</td><td>「<code>code.claude.com/docs/llms.txt</code> を見て◯◯の仕様を確認して」</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="label">意外と知られていない</span>
+      <p><strong><code>Esc</code> 2 回が巻き戻しになるのは、入力欄が空のときだけです。</strong>文字が残っていると入力のクリアになります。もう一つ、<code>!</code> のシェルモードは v2.1.186 以降<strong>出力が届くと Claude が自動で応答します</strong>。通常のプロンプトと同じ課金が発生するので、単に手元でコマンドを打ちたいだけなら設定 <code>respondToBashCommands: false</code> で旧挙動に戻せます。</p>
+    </div>
+  </article>
+</section>
+
+</main>
+</div>
+
+<script src="assets/app.js"></script>
+<script src="assets/toc.js"></script>
+<script src="assets/nav.js"></script>
+</body>
+</html>

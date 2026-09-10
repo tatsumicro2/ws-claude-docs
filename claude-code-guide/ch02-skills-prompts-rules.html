@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>スキル・プロンプト・ルール — Claude Code 体系的入門</title>
+<meta name="description" content="Claude に「何をどうやらせるか」を伝える手段は、その場のプロンプト、毎回読まれる CLAUDE.md とルール、必要になったときだけ読まれるスキルの 3 つ。コンテキストのどこに、いつ入るかで使い分けます。">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/nav.css">
+</head>
+<body>
+<div class="wrap">
+
+<main>
+
+<nav class="crumb"><a href="index.html">Claude Code 体系的入門</a><span>/</span>第2章</nav>
+
+<section class="chapter" id="ch2" data-chapter="2">
+  <div class="chapter-head">
+    <span class="chapter-num">02</span>
+    <h1>スキル・プロンプト・ルール</h1>
+  </div>
+  <p class="chapter-lede">
+    Claude に「何をどうやらせるか」を伝える手段は 3 つあります。<strong>その場のプロンプト</strong>、<strong>毎回読まれる CLAUDE.md とルール</strong>、<strong>必要になったときだけ読まれるスキル</strong>です。どれもコンテキストウィンドウに文章を置く行為で、違うのは「誰が書くか」と「いつ入るか」だけ。それを押さえると、何をどこに書けばよいかが決まります。
+  </p>
+
+  <div class="note">
+    <span class="label">原理との対応</span>
+    <p>この章は図 1-1 の<strong>長期メモリ</strong>のうち人が書く部分と、ループへの入口であるプロンプトの実装です。根拠は <a href="ch03-agent-loop-harness.html#p-memory">3-6 メモリ</a> の「外に残す」と <a href="ch03-agent-loop-harness.html#p-context">3-6 コンテキスト</a> の「毎ターン丸ごと送る」。CLAUDE.md・ルール・スキル・自動メモリは、どれもコンテキストの<strong>先頭か途中に足されるだけ</strong>で、モデルへの強制力はありません。だから <a href="#s2-8">2-8</a> の診断は「読み込まれているか」から始まり、絶対に守らせたいことはハーネス側（フック・<code>deny</code> ルール。<a href="ch05-guardrails.html">5 章</a>）へ逃がします。廃れないのは「永続化は文脈であって強制ではない」「起動時に読んだ分は毎ターンの固定費」の 2 点で、置き場所のパス・読み込み順・行数の上限は変わります。</p>
+  </div>
+
+  <article class="slide" id="s2-1" data-slide="2-1" data-slide-title="指示を与える 3 つの経路">
+    <h3>2-1. 指示を与える 3 つの経路</h3>
+    <p>指示はどれも最終的にコンテキストウィンドウに入ります。違いは<strong>誰が書き、いつ入り、どれだけ残るか</strong>です。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>経路</th><th>誰が書くか</th><th>いつコンテキストに入るか</th><th>向いているもの</th><th>本章</th></tr></thead>
+        <tbody>
+          <tr><td><strong>プロンプト</strong></td><td>あなた（その場で）</td><td>送った瞬間。会話として残る</td><td>今回のタスクの目的・制約・対象ファイル</td><td><a href="#s2-5">2-5</a></td></tr>
+          <tr><td><strong>CLAUDE.md</strong></td><td>あなた（ファイル）</td><td><strong>毎セッションの開始時に全文</strong>。毎ターン送られる固定費</td><td>プロジェクトの規約・コマンド・毎回守ってほしいこと</td><td><a href="#s2-2">2-2</a></td></tr>
+          <tr><td><strong>ルール</strong>（<code>.claude/rules/</code>）</td><td>あなた（ファイル）</td><td><code>paths</code> なしは起動時。<code>paths</code> ありは<strong>一致するファイルを触ったとき</strong></td><td>特定のディレクトリや拡張子にだけ効く規約</td><td><a href="#s2-3">2-3</a></td></tr>
+          <tr><td><strong>スキル</strong>（<code>SKILL.md</code>）</td><td>あなた（ファイル）</td><td>起動時は説明文だけ。本文は<strong>呼び出したとき</strong>、以後セッション中ずっと残る</td><td>繰り返す手順・チェックリスト・長い参照資料</td><td><a href="#s2-6">2-6</a></td></tr>
+          <tr><td><strong>自動メモリ</strong></td><td>Claude</td><td>毎セッションの開始時に冒頭のみ</td><td>Claude が会話から学んだあなたの好みや決定事項</td><td><a href="#s2-4">2-4</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note warn">
+      <span class="label">原則</span>
+      <p>5 つとも <strong>Claude に読ませるコンテキスト</strong>であり、遵守は保証されません。「絶対に守らせたい」ことは <code>PreToolUse</code> フックか権限の <code>deny</code> ルールで<strong>強制</strong>してください（<a href="ch05-guardrails.html#s5-4">5-4</a>・<a href="ch05-guardrails.html#s5-6">5-6</a>）。CLAUDE.md に「.env を触るな」と書くのは依頼、フックで書き込みをブロックするのは強制です。</p>
+    </div>
+    <h4>どこに書くかの判断</h4>
+    <ul>
+      <li>今回だけの話なら<strong>プロンプト</strong>。同じ説明を 2 回打ったら <strong>CLAUDE.md</strong> に移す</li>
+      <li>CLAUDE.md の一節が「事実」ではなく「手順」に育ってきたら<strong>スキル</strong>に切り出す。呼ばれるまでコンテキストを食わない</li>
+      <li>一部のファイルにしか関係ない規約は<strong>ルール</strong>に <code>paths</code> を付けて逃がす。毎ターンの固定費が下がる</li>
+      <li>チームで共有すべきことは自動メモリに任せず、コミットされる CLAUDE.md に明示的に書く</li>
+    </ul>
+    <div class="src"><span class="label">Source</span><ul><li><a href="https://code.claude.com/docs/ja/memory">Claude があなたのプロジェクトを記憶する方法</a> / <a href="https://code.claude.com/docs/ja/skills">スキルで Claude を拡張する</a></li></ul></div>
+  </article>
+
+  <article class="slide" id="s2-2" data-slide="2-2" data-slide-title="CLAUDE.md の置き場所と書き方">
+    <h3>2-2. CLAUDE.md の置き場所と書き方</h3>
+    <h4>置き場所とスコープ</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>スコープ</th><th>場所</th><th>目的</th><th>共有範囲</th></tr></thead>
+        <tbody>
+          <tr><td>管理ポリシー</td><td>macOS: <code>/Library/Application Support/ClaudeCode/CLAUDE.md</code><br>Linux/WSL: <code>/etc/claude-code/CLAUDE.md</code><br>Windows: <code>C:\Program Files\ClaudeCode\CLAUDE.md</code></td><td>組織全体の指示（IT 配布）</td><td>組織の全ユーザー（除外不可）</td></tr>
+          <tr><td>ユーザー指示</td><td><code>~/.claude/CLAUDE.md</code></td><td>個人の好み</td><td>自分（全プロジェクト）</td></tr>
+          <tr><td>プロジェクト指示</td><td><code>./CLAUDE.md</code> または <code>./.claude/CLAUDE.md</code></td><td>チーム共有の規約</td><td>リポジトリの全員</td></tr>
+          <tr><td>ローカル指示</td><td><code>./CLAUDE.local.md</code>（.gitignore 推奨）</td><td>個人的なプロジェクト設定</td><td>自分のみ</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h4>読み込み順序</h4>
+    <figure>
+      <svg viewBox="0 0 760 466" role="img" aria-label="CLAUDE.md と rules の読み込み順序。起動時に1管理ポリシー、2ユーザーCLAUDE.md、3ユーザーrules、4上位ディレクトリのCLAUDE.md、5作業ディレクトリのCLAUDE.mdとCLAUDE.local.md、6プロジェクトrules、7自動メモリの順に連結され、8としてサブディレクトリのCLAUDE.mdとpaths付きrulesがオンデマンドで追加される。">
+      <g style="font-family:var(--font-sans)">
+  <text x="30" y="14" font-size="11" style="font-family:var(--font-mono);fill:var(--accent)">SESSION START — この順に「連結」される（上書きではない）</text>
+  <line x1="56" y1="74" x2="56" y2="432" style="stroke:var(--line-strong)" stroke-width="1"/>
+  <path d="M56,398 l-4,-7 h8 z" style="fill:var(--line-strong)"/>
+  <rect x="86" y="34" width="600" height="40" rx="5" stroke-width="1" style="fill:var(--surface-2);stroke:var(--line-strong)"/>
+  <circle cx="56" cy="54" r="14" style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1.2"/>
+  <text x="56" y="58" text-anchor="middle" font-size="12.5" font-weight="700" style="fill:var(--ink)">1</text>
+  <text x="100" y="51" font-size="12.5" style="fill:var(--text)">管理ポリシーの CLAUDE.md</text>
+  <text x="100" y="66" font-size="10.5" style="fill:var(--muted)">IT が配布。個人設定では除外できない</text>
+  <rect x="86" y="84" width="600" height="40" rx="5" stroke-width="1" style="fill:var(--surface-2);stroke:var(--line-strong)"/>
+  <circle cx="56" cy="104" r="14" style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1.2"/>
+  <text x="56" y="108" text-anchor="middle" font-size="12.5" font-weight="700" style="fill:var(--ink)">2</text>
+  <text x="100" y="101" font-size="12.5" style="fill:var(--text)">ユーザー <tspan font-family='var(--font-mono)'>~/.claude/CLAUDE.md</tspan></text>
+  <text x="100" y="116" font-size="10.5" style="fill:var(--muted)">全プロジェクト共通の個人設定</text>
+  <rect x="86" y="134" width="600" height="40" rx="5" stroke-width="1" style="fill:var(--surface-2);stroke:var(--line-strong)"/>
+  <circle cx="56" cy="154" r="14" style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1.2"/>
+  <text x="56" y="158" text-anchor="middle" font-size="12.5" font-weight="700" style="fill:var(--ink)">3</text>
+  <text x="100" y="151" font-size="12.5" style="fill:var(--text)">ユーザーの rules（<tspan font-family='var(--font-mono)'>~/.claude/rules/</tspan>）</text>
+  <text x="100" y="166" font-size="10.5" style="fill:var(--muted)">paths: なしのものだけ</text>
+  <rect x="86" y="184" width="600" height="40" rx="5" stroke-width="1" style="fill:var(--surface-2);stroke:var(--line-strong)"/>
+  <circle cx="56" cy="204" r="14" style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1.2"/>
+  <text x="56" y="208" text-anchor="middle" font-size="12.5" font-weight="700" style="fill:var(--ink)">4</text>
+  <text x="100" y="201" font-size="12.5" style="fill:var(--text)">上位ディレクトリの CLAUDE.md</text>
+  <text x="100" y="216" font-size="10.5" style="fill:var(--muted)">ルート側から順に。例 ~/work/CLAUDE.md → ~/work/repo/CLAUDE.md</text>
+  <rect x="86" y="234" width="600" height="40" rx="5" stroke-width="1.6" style="fill:var(--accent-bg);stroke:var(--accent)"/>
+  <circle cx="56" cy="254" r="14" style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1.2"/>
+  <text x="56" y="258" text-anchor="middle" font-size="12.5" font-weight="700" style="fill:var(--ink)">5</text>
+  <text x="100" y="251" font-size="12.5" style="fill:var(--text)">作業ディレクトリの CLAUDE.md → CLAUDE.local.md</text>
+  <text x="100" y="266" font-size="10.5" style="fill:var(--muted)">起動場所に最も近い＝最後に読まれる</text>
+  <rect x="86" y="284" width="600" height="40" rx="5" stroke-width="1" style="fill:var(--surface-2);stroke:var(--line-strong)"/>
+  <circle cx="56" cy="304" r="14" style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1.2"/>
+  <text x="56" y="308" text-anchor="middle" font-size="12.5" font-weight="700" style="fill:var(--ink)">6</text>
+  <text x="100" y="301" font-size="12.5" style="fill:var(--text)">プロジェクトの rules（<tspan font-family='var(--font-mono)'>.claude/rules/</tspan>）</text>
+  <text x="100" y="316" font-size="10.5" style="fill:var(--muted)">paths: なしのものだけ</text>
+  <rect x="86" y="334" width="600" height="40" rx="5" stroke-width="1" style="fill:var(--surface-2);stroke:var(--line-strong)"/>
+  <circle cx="56" cy="354" r="14" style="fill:var(--ink-soft);stroke:var(--ink)" stroke-width="1.2"/>
+  <text x="56" y="358" text-anchor="middle" font-size="12.5" font-weight="700" style="fill:var(--ink)">7</text>
+  <text x="100" y="351" font-size="12.5" style="fill:var(--text)">自動メモリ <tspan font-family='var(--font-mono)'>MEMORY.md</tspan></text>
+  <text x="100" y="366" font-size="10.5" style="fill:var(--muted)">冒頭のみ（先頭 200 行 / 25KB）</text>
+  <line x1="30" y1="382" x2="730" y2="382" stroke-dasharray="4 4" style="stroke:var(--line-strong)"/>
+  <text x="30" y="399" font-size="11" style="font-family:var(--font-mono);fill:var(--accent)">ON DEMAND — そのファイルを読んだとき</text>
+  <rect x="86" y="412" width="600" height="40" rx="5" stroke-width="1" style="fill:#fff;stroke:var(--line-strong)" stroke-dasharray="5 3"/>
+  <circle cx="56" cy="432" r="14" style="fill:#fff;stroke:var(--line-strong)" stroke-width="1.2"/>
+  <text x="56" y="436" text-anchor="middle" font-size="12.5" font-weight="700" style="fill:var(--muted)">8</text>
+  <text x="100" y="429" font-size="12.5" style="fill:var(--text)">サブディレクトリの CLAUDE.md ／ <tspan font-family="var(--font-mono)">paths:</tspan> 付きの rules</text>
+  <text x="100" y="444" font-size="10.5" style="fill:var(--muted)">起動時には読まれない。該当ファイルに触れた時点で追加される</text>
+      </g>
+      </svg>
+      <figcaption>図 2-1：読み込み順序。<strong>後に読まれたものほど具体的な指示</strong>として扱われます（①が最も広く、⑦に向かって狭くなる）。競合しても上書きはされず、すべてがコンテキストに並びます。</figcaption>
+    </figure>
+    <ul>
+      <li><code>@path/to/file</code> 構文で他ファイルをインポート可能（最大 4 ホップ。インポート先も起動時に展開される）。<strong>プロジェクト側のファイルから作業ディレクトリ外を初めてインポートすると承認ダイアログが出ます。拒否するとインポートは無効のままになり、ダイアログは二度と表示されません</strong>（「インポートが効かない」の典型的な原因）</li>
+      <li>既に <code>AGENTS.md</code> がある場合は <code>CLAUDE.md</code> に <code>@AGENTS.md</code> と書いてインポートするか、シンボリックリンクを張る。Claude Code が読むのは <code>CLAUDE.md</code> だけ</li>
+      <li>モノレポで無関係な CLAUDE.md を除外したい場合は設定の <code>claudeMdExcludes</code> を使う</li>
+    </ul>
+
+    <h4>書き方</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>原則</th><th>具体的にどうする</th><th>例</th></tr></thead>
+        <tbody>
+          <tr><td>サイズ</td><td>1 ファイル <strong>200 行以下</strong>を目標</td><td>長いほどコンテキストを食い、遵守率が下がる</td></tr>
+          <tr><td>構造</td><td>Markdown 見出しと箇条書きでグルーピング</td><td>Claude も人間と同じように構造をスキャンする</td></tr>
+          <tr><td rowspan="3">具体性</td><td rowspan="3">検証可能な粒度で書く</td><td>×「コードを適切にフォーマットする」→ ○「インデントは 2 スペース」</td></tr>
+          <tr><td>×「変更をテストする」→ ○「コミット前に <code>npm test</code> を実行」</td></tr>
+          <tr><td>×「ファイルを整理する」→ ○「API ハンドラは <code>src/api/handlers/</code> に置く」</td></tr>
+          <tr><td>一貫性</td><td>定期的に棚卸しする</td><td>矛盾するルールがあると Claude は任意に一方を選ぶ</td></tr>
+          <tr><td>書くタイミング</td><td>サインが出たら追記する</td><td>同じ間違いを 2 回された／同じ説明を 2 回打った／レビューで同じ指摘が出た</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <pre><code># Code style
+- ES modules（import/export）を使う。CommonJS は使わない
+- 可能な限り分割代入で import する
+
+# Workflow
+- 変更後は必ず `npm run typecheck` を実行
+- パフォーマンス上、テストは単一ファイル単位で実行する</code></pre>
+    <p><code>/init</code> でひな形を自動生成できます（既存があれば改善提案）。<code>/doctor</code> は肥大化した CLAUDE.md のトリム候補も提示します。</p>
+    <div class="try">
+      <span class="label">試してみる：読み込まれている指示を確認し、最小の CLAUDE.md を足す</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="/context">/context   # 実際に読み込まれたものを「Memory files」で確認</span><span class="cmd" data-copy="/memory">/memory    # 置き場所の一覧。その場で開いて編集できる</span></code></pre></div>
+      <p><code>/memory</code> が出すのは<strong>置き場所の一覧</strong>で、まだ存在しないファイルの枠も並びます（実測）。<strong>今のセッションに実際に読み込まれたか</strong>は <code>/context</code> の <strong>Memory files</strong> で確認してください。ターミナルで追記するなら次のとおりです（<code>/init</code> で生成済みの内容を消さないよう <code>&gt;&gt;</code> で追記）。</p>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="cat &gt;&gt; CLAUDE.md &lt;&lt;&#x27;EOF&#x27;&#10;&#10;# Workflow&#10;- 変更後は `npm test` を実行する&#10;- コミット前に `npm run lint` を通す&#10;EOF">cat &gt;&gt; CLAUDE.md &lt;&lt;'EOF'
+
+# Workflow
+- 変更後は `npm test` を実行する
+- コミット前に `npm run lint` を通す
+EOF</span></code></pre></div>
+    </div>
+    <div class="src"><span class="label">Source</span><ul><li><a href="https://code.claude.com/docs/ja/memory">メモリ — CLAUDE.md ファイル／読み込み方法／効果的な指示を書く</a></li><li><a href="https://code.claude.com/docs/ja/best-practices">ベストプラクティス — 効果的な CLAUDE.md を書く</a> / <a href="https://code.claude.com/docs/ja/large-codebases">モノレポ・大規模コードベースの構成</a></li></ul></div>
+  </article>
+
+  <article class="slide" id="s2-3" data-slide="2-3" data-slide-title="rules によるパス限定">
+    <h3>2-3. rules によるパス限定</h3>
+    <p>CLAUDE.md が膨らんできたら、<code>.claude/rules/</code> にトピック別ファイルとして分割します。<code>paths</code> を指定すると<strong>一致するファイルを触ったときだけ</strong>読み込まれ、コンテキストを節約できます。</p>
+    <pre><code>your-project/
+└── .claude/
+    ├── CLAUDE.md            # 常時読み込まれるコア規約
+    └── rules/
+        ├── code-style.md
+        ├── testing.md
+        └── api-design.md    # paths 指定で条件付き読み込み</code></pre>
+    <pre><code>---
+paths:
+  - "src/api/**/*.ts"
+  - "lib/**/*.{ts,tsx}"
+---
+
+# API 開発ルール
+- すべてのエンドポイントに入力検証を入れる
+- 標準のエラーレスポンス形式を使う</code></pre>
+    <ul>
+      <li><code>paths</code> なしのルールは <code>.claude/CLAUDE.md</code> と同じ優先度で起動時に読み込まれる</li>
+      <li><code>.md</code> は再帰的に検出されるので <code>rules/frontend/</code> のような整理も可能。シンボリックリンクにも対応し、複数リポジトリで共通ルールセットを共有できる</li>
+      <li>ユーザーレベルは <code>~/.claude/rules/</code>（プロジェクトルールより先に読み込まれる＝プロジェクト側が優先）</li>
+    </ul>
+    <div class="try">
+      <span class="label">試してみる：パス限定ルールを作る</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="mkdir -p .claude/rules &amp;&amp; cat &gt; .claude/rules/testing.md &lt;&lt;&#x27;EOF&#x27;&#10;---&#10;paths: [&quot;**/*.test.ts&quot;]&#10;---&#10;- テストは Arrange-Act-Assert の順で書く&#10;EOF">mkdir -p .claude/rules &amp;&amp; cat &gt; .claude/rules/testing.md &lt;&lt;'EOF'
+---
+paths: ["**/*.test.ts"]
+---
+- テストは Arrange-Act-Assert の順で書く
+EOF</span></code></pre></div>
+      <p>次に <code>*.test.ts</code> を触らせると、このルールだけが追加で読み込まれます。</p>
+    </div>
+    <div class="src"><span class="label">Source</span><ul><li><a href="https://code.claude.com/docs/ja/memory">メモリ — <code>.claude/rules/</code> でルールを整理する</a></li></ul></div>
+  </article>
+
+  <article class="slide" id="s2-4" data-slide="2-4" data-slide-title="自動メモリ">
+    <h3>2-4. 自動メモリ（auto memory）</h3>
+    <p>CLAUDE.md があなたの書く記憶なら、自動メモリは <strong>Claude が自分で書く記憶</strong>です。会話から学んだことをプレーンな Markdown に残し、次のセッションの先頭に読み込みます。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>項目</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr><td>何が保存されるか</td><td>4 種類（フロントマターの <code>type</code>）。<code>user</code>＝あなたの役割・専門・作業の好み／<code>feedback</code>＝あなたの指摘と、確定した進め方／<code>project</code>＝進行中の作業・期限・コードや git 履歴から導けない決定／<code>reference</code>＝Issue トラッカー等、プロジェクト外の情報の在り処</td></tr>
+          <tr><td><strong>保存されないもの</strong></td><td><strong>コードベースから導けること</strong>（アーキテクチャ、ファイルパス、デバッグの修正内容）と、<strong>CLAUDE.md に既に書いてあること</strong>。毎セッション必ず保存するわけでもない</td></tr>
+          <tr><td>既定と無効化</td><td>既定で<strong>有効</strong>。<code>/memory</code> のトグル、<code>autoMemoryEnabled: false</code>、<code>CLAUDE_CODE_DISABLE_AUTO_MEMORY=1</code></td></tr>
+          <tr><td>保存場所と構成</td><td><code>~/.claude/projects/&lt;project&gt;/memory/</code>。<code>MEMORY.md</code> がインデックスで、詳細は個別トピックファイルに分離される。<strong>マシンローカル</strong>で他マシンとは共有されず、コミットもされない</td></tr>
+          <tr><td>起動時に読まれる範囲</td><td><code>MEMORY.md</code> の冒頭のみ（先頭 200 行 / 25KB）。トピックファイルはオンデマンド</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="label">使い分け</span>
+      <p>「今後は npm ではなく pnpm を使って」と会話で頼むと自動メモリに保存されます。<strong>チームで共有すべきルール</strong>は自動メモリではなく CLAUDE.md に明示的に書いてください。<code>#</code> プレフィックスでその場からメモリに追記できます。</p>
+    </div>
+    <div class="try">
+      <span class="label">試してみる：自動メモリに書かせて確認する</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="このプロジェクトのテストは npm test で走ることを覚えておいて">このプロジェクトのテストは npm test で走ることを覚えておいて</span><span class="cmd" data-copy="/memory">/memory</span></code></pre></div>
+    </div>
+    <div class="src"><span class="label">Source</span><ul><li><a href="https://code.claude.com/docs/ja/memory">メモリ — 自動メモリ</a> / <a href="https://code.claude.com/docs/ja/claude-directory">.claude ディレクトリを探索する</a></li></ul></div>
+  </article>
+
+  <article class="slide" id="s2-5" data-slide="2-5" data-slide-title="プロンプトの技法">
+    <h3>2-5. プロンプトの技法</h3>
+    <p>公式のベストプラクティスから、対話の技法に関わる部分をまとめます。根拠は 1 つで、<strong>エージェントループは機械的な合否がコンテキストに入る領域でだけ収束する</strong>（<a href="ch03-agent-loop-harness.html#p-loop">3-6 ループ</a>）。この節の技法はすべて、合否をコンテキストに入れる工夫か、外れた周回を減らす工夫です。</p>
+    <h4>3 つの基本原則</h4>
+    <div class="cards">
+      <div class="card"><span class="tag">01</span><h5>検証手段を与える</h5><p>テスト、ビルド、比較用スクリーンショット。Claude が自分でチェックできるかどうかが、「見張るセッション」と「任せられるセッション」を分ける。</p></div>
+      <div class="card"><span class="tag">02</span><h5>探索 → 計画 → 実装</h5><p>調査と実装を分けると、間違った問題を解くことを防げる。ただし小さく明確な修正に Plan Mode は不要（オーバーヘッドになる）。</p></div>
+      <div class="card"><span class="tag">03</span><h5>具体的なコンテキストを渡す</h5><p>対象ファイル、制約、参考にすべき既存パターンを明示する。最初のプロンプトの精度が、後の手戻りを決める。</p></div>
+    </div>
+    <pre><code>チェックアウトフローが、期限切れカードのユーザーで壊れています。
+src/payments/ を、特にトークン更新まわりを中心に確認してください。
+まず失敗するテストを書いて、その後で修正してください。</code></pre>
+    <h4>対話の技法</h4>
+    <ul>
+      <li><strong>会話として扱う</strong>：完璧なプロンプトは不要。まず投げて、そこから修正する</li>
+      <li><strong>中断して操舵する</strong>：<code>Esc</code> で即停止、あるいは実行中に補足を送る</li>
+      <li><strong>委譲する（指示しすぎない）</strong>：読むファイルや実行コマンドを逐一指定せず、目的と制約を伝える</li>
+      <li><strong>コードベースへの質問に使う</strong>：「ロギングはどう動く？」「なぜ 333 行目で foo() を呼ぶ？」。オンボーディングに極めて有効</li>
+      <li><strong>逆にインタビューさせる</strong>：大きめの機能では <code>AskUserQuestion</code> で Claude に質問させ、仕様を <code>SPEC.md</code> に落としてから、<strong>新しいセッション</strong>で実装させる</li>
+    </ul>
+    <pre><code>[brief description] を作りたい。AskUserQuestion ツールで詳しくインタビューしてください。
+技術実装、UI/UX、エッジケース、懸念、トレードオフについて。
+自明な質問は不要。私が見落としていそうな難所を掘ってください。
+一通り終わったら SPEC.md に完全な仕様を書いてください。</code></pre>
+    <h4>よくある失敗パターン</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>アンチパターン</th><th>症状</th><th>対処</th></tr></thead>
+        <tbody>
+          <tr><td><strong>キッチンシンク・セッション</strong></td><td>1 つのセッションで無関係な話題を行き来し、コンテキストが雑多になる</td><td>タスクの切れ目で <code>/clear</code>（<a href="ch04-sessions-checkpoints.html#s4-3">4-3</a>）</td></tr>
+          <tr><td><strong>修正の連鎖</strong></td><td>間違い → 修正 → まだ間違い、の繰り返しで失敗案が蓄積</td><td>2 回失敗したら <code>/clear</code> して初期プロンプトを書き直す</td></tr>
+          <tr><td><strong>過剰な CLAUDE.md</strong></td><td>長すぎて重要なルールがノイズに埋もれる</td><td>容赦なく削る。守らせたいものはフックへ</td></tr>
+          <tr><td><strong>信頼して検証しない</strong></td><td>それらしい実装だがエッジケースを落としている</td><td>常に検証手段（テスト・スクリプト・スクショ）を与える</td></tr>
+          <tr><td><strong>無限探索</strong></td><td>スコープなしの「調査して」で数百ファイルを読む</td><td>対象ディレクトリと問いを絞る</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="label">最後に</span>
+      <p>公式ドキュメント自身が述べているとおり、これらは固定ルールではありません。うまくいったときに<strong>何をしたか</strong>を観察し、自分のプロジェクトに合った直感を育てることが到達点です。</p>
+    </div>
+    <div class="src"><span class="label">Source</span><ul><li><a href="https://code.claude.com/docs/ja/best-practices">ベストプラクティス — 効果的にコミュニケーションする／一般的な失敗パターンを避ける</a></li></ul></div>
+  </article>
+
+  <article class="slide" id="s2-6" data-slide="2-6" data-slide-title="スキルの基本と最小構成">
+    <h3>2-6. スキルの基本と最小構成</h3>
+    <p>スキルは最も柔軟な指示の手段です。実体は <code>SKILL.md</code> という Markdown ファイル 1 枚。Claude が自動で読み込むことも、<code>/名前</code> であなたが呼び出すこともできます。</p>
+    <ul>
+      <li>ディレクトリに <code>SKILL.md</code> を置くだけで、Claude のツールキットに手順・知識が追加される</li>
+      <li><strong>本文は使用時にしか読み込まれない</strong>ため、長い参照資料でも普段はほぼ無コスト</li>
+      <li>カスタムコマンド（<code>.claude/commands/*.md</code>）はスキルに統合済み。両者とも <code>/deploy</code> として動作するが、<strong>スキルの方が高機能</strong>（補助ファイル、呼び出し制御、自動発火）</li>
+      <li>Claude Code のスキルは <a href="https://agentskills.io">Agent Skills オープン標準</a>に準拠。他の AI ツールとも互換性がある</li>
+    </ul>
+    <p><strong>作成する目安</strong>：同じプレイブック・チェックリスト・複数ステップの手順を繰り返し貼り付けているとき、または CLAUDE.md の一節が「事実」ではなく「手順」に育ってきたとき。</p>
+    <h4>最小構成</h4>
+    <pre><code>---
+description: 未コミットの変更を要約し、危険な点にフラグを立てる。差分レビューやコミットメッセージを求められたときに使う。
+---
+
+## Current changes
+
+!`git diff HEAD`
+
+## Instructions
+
+上記の変更を 2〜3 個の箇条書きで要約し、エラー処理の欠落・
+ハードコードされた値・更新が必要なテストなどのリスクを列挙してください。</code></pre>
+    <pre><code>my-skill/
+├── SKILL.md          # メイン指示（必須）
+├── reference.md      # 詳細な API ドキュメント（必要時に読む）
+├── examples/
+│   └── sample.md
+└── scripts/
+    └── validate.sh   # Claude が実行できるスクリプト</code></pre>
+    <p><code>SKILL.md</code> は <strong>500 行以下</strong>を目安に。詳細は補助ファイルへ逃がし、<code>SKILL.md</code> から参照させます。冒頭の <code>---</code> で挟まれた部分が<strong>フロントマター</strong>で、次節で扱います。</p>
+    <h4>置き場所と優先順位</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>場所</th><th>パス</th><th>適用範囲</th></tr></thead>
+        <tbody>
+          <tr><td>Enterprise</td><td>管理設定ディレクトリ</td><td>組織内の全ユーザー</td></tr>
+          <tr><td>Personal</td><td><code>~/.claude/skills/&lt;name&gt;/SKILL.md</code></td><td>全プロジェクト</td></tr>
+          <tr><td>Project</td><td><code>.claude/skills/&lt;name&gt;/SKILL.md</code></td><td>そのプロジェクトのみ</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul>
+      <li>同名なら <strong>enterprise &gt; personal &gt; project</strong>。バンドルスキルも同名の自作スキルで上書きできる</li>
+      <li>モノレポではネストした <code>.claude/skills/</code> も検出され、<code>/apps/web:deploy</code> のような修飾名で呼び分けられる</li>
+      <li><strong>ライブ変更検出</strong>：<code>SKILL.md</code> の追加・編集は再起動なしで反映される（<code>~/.claude/skills/</code> を初めて作ったときだけ再起動が必要）</li>
+    </ul>
+    <div class="try">
+      <span class="label">試してみる：30 秒でスキルを作る</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="mkdir -p ~/.claude/skills/summarize-changes &amp;&amp; cat &gt; ~/.claude/skills/summarize-changes/SKILL.md &lt;&lt;&#x27;EOF&#x27;&#10;---&#10;description: 未コミットの変更を要約する。差分レビューを求められたときに使う。&#10;---&#10;!`git diff HEAD --stat`&#10;&#10;上の変更を3行で要約し、気になる点を挙げてください。&#10;EOF">mkdir -p ~/.claude/skills/summarize-changes &amp;&amp; cat &gt; ~/.claude/skills/summarize-changes/SKILL.md &lt;&lt;'EOF'
+---
+description: 未コミットの変更を要約する。差分レビューを求められたときに使う。
+---
+!`git diff HEAD --stat`
+
+上の変更を3行で要約し、気になる点を挙げてください。
+EOF</span></code></pre></div>
+      <p>git リポジトリ内で実行してください。セッションで <code>/summarize-changes</code> と打てば呼び出せます。後始末は <code>rm -rf ~/.claude/skills/summarize-changes</code>。</p>
+    </div>
+    <div class="src"><span class="label">Source</span><ul><li><a href="https://code.claude.com/docs/ja/skills">スキルで Claude を拡張する — はじめに／サポートファイル／スキルが存在する場所</a> / <a href="https://agentskills.io">agentskills.io</a></li></ul></div>
+  </article>
+
+  <article class="slide" id="s2-7" data-slide="2-7" data-slide-title="スキルのフロントマターと呼び出し制御">
+    <h3>2-7. スキルのフロントマターと呼び出し制御</h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>フィールド</th><th>説明</th></tr></thead>
+        <tbody>
+          <tr><td><code>description</code></td><td><strong>実質必須</strong>。Claude が「使うべきか」を判断する材料。主要ユースケースを先頭に書く</td></tr>
+          <tr><td><code>when_to_use</code></td><td>トリガーフレーズや例示。description と合わせて 1,536 文字で切り詰められる</td></tr>
+          <tr><td><code>name</code></td><td>表示名。呼び出し名は原則ディレクトリ名から決まる</td></tr>
+          <tr><td><code>disable-model-invocation</code></td><td><code>true</code> で Claude の自動発火を禁止＝ユーザー専用。副作用のある操作に必須級</td></tr>
+          <tr><td><code>user-invocable</code></td><td><code>false</code> で <code>/</code> メニューから隠す＝Claude 専用の背景知識向け</td></tr>
+          <tr><td><code>allowed-tools</code></td><td>確認なしで使えるツール（例 <code>Bash(git add *)</code>）。<strong>有効なのは呼び出したそのターンだけ</strong>で、次のメッセージを送ると解除される。セッション全体に効かせたいなら <code>permissions.allow</code>（<a href="ch05-guardrails.html#s5-4">5-4</a>）に書く</td></tr>
+          <tr><td><code>disallowed-tools</code></td><td>実行中に取り除くツール</td></tr>
+          <tr><td><code>model</code> / <code>effort</code></td><td>このスキル実行中のモデル・努力レベル</td></tr>
+          <tr><td><code>paths</code></td><td>該当ファイルを扱うときだけ自動発火させる glob</td></tr>
+          <tr><td><code>argument-hint</code> / <code>arguments</code></td><td>補完に出す引数ヒント／名前付き引数の定義</td></tr>
+          <tr><td><code>hooks</code></td><td>このスキルのライフサイクルに限定したフック（<a href="ch05-guardrails.html#s5-6">5-6</a>）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h4>呼び出し制御の組み合わせ</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>設定</th><th>ユーザー</th><th>Claude</th><th>コンテキストへの読み込み</th></tr></thead>
+        <tbody>
+          <tr><td>（既定）</td><td>可</td><td>可</td><td>説明は常時／呼び出しで全文</td></tr>
+          <tr><td><code>disable-model-invocation: true</code></td><td>可</td><td>不可</td><td>呼び出すまで<strong>ゼロ</strong></td></tr>
+          <tr><td><code>user-invocable: false</code></td><td>不可</td><td>可</td><td>説明は常時／呼び出しで全文</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h4>引数と動的コンテキスト注入</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>変数</th><th>展開されるもの</th><th>例</th></tr></thead>
+        <tbody>
+          <tr><td><code>$ARGUMENTS</code></td><td>呼び出し時の全引数</td><td><code>/deploy staging now</code> → <code>staging now</code></td></tr>
+          <tr><td><code>$0</code> <code>$1</code> …</td><td>位置指定</td><td><code>$0</code> → <code>staging</code></td></tr>
+          <tr><td>名前付き引数</td><td>フロントマターで <code>arguments: [issue, branch]</code> と宣言すると名前で参照できる</td><td><code>$issue</code> <code>$branch</code></td></tr>
+          <tr><td>環境変数</td><td>スキルの実行環境</td><td><code>${CLAUDE_SKILL_DIR}</code> <code>${CLAUDE_PROJECT_DIR}</code> <code>${CLAUDE_SESSION_ID}</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><code>!`command`</code> と書くと、スキル本文が Claude に渡る<strong>前に</strong>シェルコマンドが実行され、出力がその場に埋め込まれます。「Claude にコマンドを実行させる」のではなく、<strong>前処理でデータを差し込む</strong>仕組みです。複数行なら <code>```!</code> で囲んだフェンスブロックを使います。組織で禁止したい場合は設定 <code>disableSkillShellExecution: true</code>（管理設定で強制可能）。</p>
+    <h4>ライフサイクル</h4>
+    <ul>
+      <li>呼び出されたスキルの本文は<strong>会話に 1 メッセージとして入り、セッション中ずっと残ります</strong>。単発の手順ではなく「常時適用される指示」として書くのが正解</li>
+      <li>自動コンパクション時は、直近に呼び出されたスキルが予算内で再添付されます。効果が薄れたように見えるときはコンパクション後に再呼び出しします</li>
+      <li>「発火したか」と「出力が期待通りか」は別問題。スキル有効／無効のベースライン比較で測るのが公式の推奨で、<code>skill-creator</code> プラグインがこのループを自動化します</li>
+    </ul>
+    <h4>バンドルされたスキル</h4>
+    <p>最初から使える公式スキル群です。中身はプロンプトなので、自作の参考になります。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>スキル</th><th>役割</th></tr></thead>
+        <tbody>
+          <tr><td><code>/doctor</code></td><td>インストール・設定の点検と修正</td></tr>
+          <tr><td><code>/code-review</code></td><td>差分をレビューしてバグを検出（<code>--fix</code> で適用）</td></tr>
+          <tr><td><code>/debug</code></td><td>ランタイム問題の診断</td></tr>
+          <tr><td><code>/loop</code></td><td>プロンプトを一定間隔で繰り返す</td></tr>
+          <tr><td><code>/run</code> / <code>/verify</code></td><td>アプリを実際に起動して変更を確認する</td></tr>
+          <tr><td><code>/claude-api</code></td><td>Claude API / SDK に関するリファレンス</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="try">
+      <span class="label">試してみる：バンドルスキルを使う</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="/code-review">/code-review        # 現在の差分をレビュー（--fix で修正まで）</span></code></pre></div>
+    </div>
+    <div class="src"><span class="label">Source</span><ul><li><a href="https://code.claude.com/docs/ja/skills">スキル — フロントマターリファレンス／引数を渡す／動的コンテキストを注入する／コンテンツのライフサイクル／バンドルされたスキル</a></li></ul></div>
+  </article>
+
+  <article class="slide" id="s2-8" data-slide="2-8" data-slide-title="指示が効かないときの診断">
+    <h3>2-8. 指示が効かないときの診断</h3>
+    <p>順番が大事です。<strong>まず「読み込まれているか」を確かめてから、内容を疑ってください。</strong>読み込まれていないファイルをいくら書き直しても効きません。</p>
+    <ol>
+      <li><code>/context</code> の <strong>Memory files</strong> を見る。<strong>ここに出ていなければ Claude は見ていない。</strong>中身を開いて直すのは <code>/memory</code></li>
+      <li><code>@</code> インポートが効かない場合、過去に<strong>インポートの承認ダイアログを拒否していないか</strong>を疑う（拒否は記憶され、再表示されない）</li>
+      <li>置き場所がセッションに読み込まれる階層かを確認（<a href="#s2-2">2-2</a> の読み込み順序）。サブディレクトリの CLAUDE.md と <code>paths</code> 付きルールは、該当ファイルに触れるまで読まれない</li>
+      <li>セッションの途中で編集していないか確認する。プロジェクトルートの CLAUDE.md は<strong>セッション開始時に一度だけ</strong>読まれる（<a href="ch06-context-cost-caching.html#s6-3">6-3</a>）。反映は次の <code>/clear</code> か再起動から</li>
+      <li>指示をより具体的に書き換える／矛盾する指示を削除する</li>
+      <li>特定タイミングで必ず走らせたい処理は<strong>フック</strong>に移す（<a href="ch05-guardrails.html#s5-7">5-7</a>）</li>
+      <li>システムプロンプトレベルで必要なら <code>--append-system-prompt</code>（スクリプト向き）</li>
+      <li><code>InstructionsLoaded</code> フックで「いつ・なぜ・どのファイルが読まれたか」をログに取る（<a href="ch05-guardrails.html#s5-6">5-6</a>）。設定全般の診断は <code>/doctor</code> <code>/hooks</code></li>
+    </ol>
+    <div class="src"><span class="label">Source</span><ul><li><a href="https://code.claude.com/docs/ja/memory">メモリ — トラブルシューティング</a> / <a href="https://code.claude.com/docs/ja/debug-your-config">設定をデバッグする</a></li></ul></div>
+  </article>
+
+  <article class="slide" id="s2-9" data-slide="2-9" data-slide-title="この章の持ち帰り">
+    <h3>2-9. この章の持ち帰り</h3>
+    <p>CLAUDE.md とスキルは最もコスパの高い投資ですが、<strong>効かせ方を外すと固定費だけが増えます</strong>。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>覚えること</th><th>仕事での効き目</th><th>具体的な操作</th></tr></thead>
+        <tbody>
+          <tr><td><strong>永続化は文脈であって強制ではない</strong></td><td>「書いたのに守られない」を不具合ではなく仕様として予測できる。書く前に、伝える文脈と守らせる規則を分けられる</td><td>禁止事項は PreToolUse フック or <code>deny</code> ルールへ（<a href="ch05-guardrails.html">5 章</a>）</td></tr>
+          <tr><td><strong>実際に読まれたかは <code>/context</code> で確認</strong></td><td>読まれていないファイルをいくら書き直しても効かない。診断はここから始める</td><td><code>/context</code> の Memory files</td></tr>
+          <tr><td><strong>200 行以下・検証可能な粒度で書く</strong></td><td>長いほど遵守率が下がる。「適切に」ではなく「インデントは 2 スペース」と書く</td><td><code>/init</code> でたたき台 → 削って育てる</td></tr>
+          <tr><td><strong>同じ指摘を 2 回したら CLAUDE.md、同じ手順を 3 回貼ったらスキル</strong></td><td>書くタイミングの判断で迷わなくなる。スキルは呼ばれるまでコンテキストを食わない</td><td><code>#</code> でその場から追記／<code>~/.claude/skills/&lt;name&gt;/SKILL.md</code></td></tr>
+          <tr><td><strong>常時ロードを <code>rules</code> に逃がす</strong></td><td>該当ファイルを触ったときだけ読ませれば、毎リクエストの固定費が下がる</td><td><code>.claude/rules/*.md</code> に <code>paths:</code></td></tr>
+          <tr><td><strong>必ず検証手段を渡す</strong></td><td>「見張るセッション」と「任せられるセッション」を分ける最大の要因</td><td>「まず失敗するテストを書いて、その後で修正して」</td></tr>
+          <tr><td><strong>同じ問題で 2 回失敗したら <code>/clear</code></strong></td><td>失敗案が積み上がったコンテキストは、そのまま続けても精度が上がらない</td><td><code>/clear</code> → 学んだことを織り込んで再依頼</td></tr>
+          <tr><td><strong>スキルは <code>description</code> が命</strong></td><td>Claude が「使うべきか」を判断する唯一の材料。主要ユースケースを先頭に書く</td><td><code>when_to_use</code> と合わせて 1,536 文字で切られる</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="label">意外と知られていない</span>
+      <p><strong><code>@</code> インポートの承認ダイアログを一度でも拒否すると、インポートは無効のままになり、ダイアログは二度と表示されません。</strong>「インポートが効かない」の典型的な原因です。もう一つ、<strong>スキルの <code>allowed-tools</code> が効くのは、そのスキルを呼び出したターンだけ</strong>です。次のメッセージを送ると解除されます（本文はコンテキストに残るのに権限は残らない）。</p>
+    </div>
+  </article>
+</section>
+
+</main>
+</div>
+
+<script src="assets/app.js"></script>
+<script src="assets/toc.js"></script>
+<script src="assets/nav.js"></script>
+</body>
+</html>

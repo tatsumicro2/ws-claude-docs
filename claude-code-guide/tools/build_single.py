@@ -3,8 +3,9 @@
 
 - CSS / JS はインラインに埋め込む（外部ファイル参照なし。図は元から SVG インライン）
 - 章間リンク chNN-*.html#sX-Y は #sX-Y に、章リンクは #chN に書き換える
-- サイドバーは全章を展開した状態で残し、スクロールに応じて節と章をハイライトする
-- ページャ・パンくずは除去し、フッタは末尾に 1 つだけ置く
+- サイドバー・章カード・フッターは Python 側で描く（章ページでは nav.js が描くもの）。
+  サイドバーは全章を展開した状態で、スクロールに応じて節と章をハイライトする
+- ページャ・パンくずは置かない
 
 出力先: claude-code-guide/dist/claude-code-guide.html（引数で変更可）
 
@@ -12,12 +13,13 @@
     python3 claude-code-guide/tools/build_single.py
     python3 claude-code-guide/tools/build_single.py 別の出力先.html
 """
-import json
 import re
 import sys
 from pathlib import Path
 
-GUIDE = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from guide_toc import GUIDE, load_toc, sidebar_html, index_cards_html, footer_html  # noqa: E402
+
 DEFAULT_OUT = GUIDE / "dist" / "claude-code-guide.html"
 
 
@@ -31,68 +33,50 @@ def between(text: str, start: str, end: str) -> str:
     return text[i:j]
 
 
-def strip_block(text: str, start: str, end: str) -> str:
-    return re.sub(re.escape(start) + r".*?" + re.escape(end), "", text, flags=re.S)
-
-
 def main() -> int:
     out = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_OUT
-    toc = json.loads(read(GUIDE / "toc.json"))
+    toc = load_toc()
     chapters = toc["chapters"]
     file_to_anchor = {c["file"]: f"#ch{c['num']}" for c in chapters}
 
     def rewrite_links(html: str) -> str:
         def repl(m: re.Match) -> str:
             fname, frag = m.group(1), m.group(2)
-            if frag:
-                return f'href="{frag}"'
-            return f'href="{file_to_anchor.get(fname, "#top")}"'
-
+            return f'href="{frag}"' if frag else f'href="{file_to_anchor.get(fname, "#top")}"'
         html = re.sub(r'href="(ch\d{2}-[a-z0-9-]+\.html)(#[^"]*)?"', repl, html)
         html = re.sub(r'href="index\.html(#[^"]*)?"', 'href="#top"', html)
         return html
 
-    # ---- サイドバー（index.html のものを流用。全章を展開状態にする） ----
-    index_html = read(GUIDE / "index.html")
-    nav = between(index_html, "<!-- NAV:START -->", "<!-- NAV:END -->")
-    nav = rewrite_links(nav)
-    nav = nav.replace(' class="toc-ch-row is-current"', ' class="toc-ch-row"')
-    nav = nav.replace(' aria-current="page"', "")
-    nav = nav.replace('aria-expanded="false"', 'aria-expanded="true"')
-    nav = re.sub(r'(<ul class="toc-sections" id="toc-sec-\d+") hidden>', r"\1>", nav)
+    def href(f, anchor):
+        if f == "index.html":
+            return "#top"
+        return "#" + anchor if anchor else file_to_anchor[f]
 
-    # ---- 表紙（index.html の main。章カードは #chN へ） ----
-    cover = between(index_html, "<main>", "</main>")
-    cover = strip_block(cover, "<footer>", "</footer>")
+    nav = sidebar_html(toc, current=None, expand_all=True, href=href)
+    cards = index_cards_html(toc, href=lambda f: file_to_anchor[f])
+
+    # ---- 表紙（index.html の main。章カードの空の受け皿を Python の描画で置き換える） ----
+    cover = between(read(GUIDE / "index.html"), "<main>", "</main>")
+    cover = re.sub(r'<ol class="index-grid" data-index>\s*</ol>', cards, cover, count=1)
     cover = rewrite_links(cover)
     cover = cover.replace('<header class="masthead">', '<header class="masthead" id="top">', 1)
-    # 表紙の図は 1 章の図 1-1 と同じ SVG なので、marker の id が衝突しないよう付け替える
-    cover = cover.replace('ar-core', 'ar-core-cover')
 
     # ---- 各章の本文 ----
     bodies = []
-    footer = ""
     for c in chapters:
-        html = read(GUIDE / c["file"])
-        body = between(html, "<main>", "</main>")
+        body = between(read(GUIDE / c["file"]), "<main>", "</main>")
         body = re.sub(r'<nav class="crumb">.*?</nav>\s*', "", body, flags=re.S)
-        body = strip_block(body, "<!-- PAGER:START -->", "<!-- PAGER:END -->")
-        m = re.search(r"<footer>.*?</footer>", body, flags=re.S)
-        if m:
-            footer = m.group(0)
-            body = body.replace(m.group(0), "")
         bodies.append(rewrite_links(body.strip()))
 
     # ---- アセットをインライン化 ----
     assets = GUIDE / "assets"
     css = read(assets / "style.css") + "\n" + read(assets / "nav.css")
-    js = read(assets / "app.js") + "\n" + read(assets / "nav.js")
+    js = read(assets / "toc.js") + "\n" + read(assets / "app.js") + "\n" + read(assets / "nav.js")
 
     extra_css = """
 /* ---------- 単一ファイル版の追加スタイル ---------- */
 html{scroll-behavior:auto}  /* 章をまたぐ長距離ジャンプが多いので即時スクロールにする */
 .chapter{scroll-margin-top:1rem}
-.single-toc-note{font-size:.78rem; color:var(--muted); margin:-.4rem 0 .8rem}
 .chapter + .chapter, .index-grid + .chapter{margin-top:5rem; padding-top:3rem; border-top:1px solid var(--line)}
 @media print{ .chapter{break-before:page} }
 """
@@ -123,7 +107,7 @@ html{scroll-behavior:auto}  /* 章をまたぐ長距離ジャンプが多いの�
 })();
 """
 
-    title = toc.get("title", "Claude Code 体系的入門")
+    title = toc["title"]
     total_sections = sum(len(c["sections"]) for c in chapters)
     desc = f"{title}。全 {len(chapters)} 章 / {total_sections} 節を 1 ファイルにまとめた版。"
 
@@ -142,14 +126,14 @@ html{scroll-behavior:auto}  /* 章をまたぐ長距離ジャンプが多いの�
 <body>
 <div class="wrap">
 
-<!-- NAV:START -->{nav}<!-- NAV:END -->
+{nav}
 
 <main>
 {cover.strip()}
 
 {chr(10).join(bodies)}
 
-{footer}
+{footer_html(toc)}
 </main>
 </div>
 
@@ -161,11 +145,8 @@ html{scroll-behavior:auto}  /* 章をまたぐ長距離ジャンプが多いの�
 </html>
 """
 
-    # ---- 検証: ページ内リンクの参照先がすべて存在するか ----
     ids = set(re.findall(r'\bid="([^"]+)"', doc))
-    missing = sorted({
-        frag for frag in re.findall(r'href="#([^"]+)"', doc) if frag not in ids
-    })
+    missing = sorted({frag for frag in re.findall(r'href="#([^"]+)"', doc) if frag not in ids})
     if missing:
         print("アンカー切れ:", ", ".join(missing), file=sys.stderr)
         return 1

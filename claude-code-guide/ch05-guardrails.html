@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ガードレール機能 — Claude Code 体系的入門</title>
+<meta name="description" content="副作用が起きるのはツール実行の瞬間だけ。権限モード・権限ルール・サンドボックス・フック・組織の管理設定は、いずれもその直前に割り込む仕組みで、役割分担を知れば「どこで止めるか」を設計できます。">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/nav.css">
+</head>
+<body>
+<div class="wrap">
+
+<main>
+
+<nav class="crumb"><a href="index.html">Claude Code 体系的入門</a><span>/</span>第5章</nav>
+
+<section class="chapter" id="ch5" data-chapter="5">
+  <div class="chapter-head">
+    <span class="chapter-num">05</span>
+    <h1>ガードレール機能</h1>
+  </div>
+  <p class="chapter-lede">
+    モデルは「実行したい」と言うだけで、外界に触れるのはハーネスだけです。だから<strong>止められる場所はツール実行の直前の 1 か所</strong>に集まります。権限モード・権限ルール・サンドボックス・フック・組織の管理設定は、すべてその 1 か所に置く強制の書き方で、違うのは「何を、どの粒度で、誰が決めるか」だけです。
+  </p>
+
+  <div class="note">
+    <span class="label">原理との対応</span>
+    <p>この章は図 1-1 の<strong>ガードレール</strong>の実装で、根拠は <a href="ch03-agent-loop-harness.html#p-control">3-6 ガードレール</a>（副作用はハーネスにしかない）と <a href="ch03-agent-loop-harness.html#p-tool">3-6 ツール使用</a>（モデルは選ぶだけで、実行しない）です。CLAUDE.md やスキルは「文脈で頼む」側で、モデルが読んで従うことが多いだけで保証はありません。この章の手段はモデルを通さず、ハーネスがループの決まった位置で必ず動かすので<strong>決定論的</strong>に効きます。廃れないのは「守らせたい規則はコンテキストではなくハーネスに置く」「実行直前で止める」という分業で、変わるのはモードの既定値、ルール構文、イベント名の一覧、保護パスの一覧です。</p>
+  </div>
+
+  <article class="slide" id="s5-1" data-slide="5-1" data-slide-title="ガードレールの全体像">
+    <h3>5-1. ガードレールの全体像</h3>
+    <p>手段は 5 つあり、同じ「ツール実行の直前」に、違う粒度で効きます。上ほど広く、下ほど細かい制御です。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>手段</th><th>何を決めるか</th><th>粒度</th><th>誰が決めるか</th><th>本章</th></tr></thead>
+        <tbody>
+          <tr><td><strong>組織の管理設定</strong></td><td>下の 4 つの既定値と上限。個人やプロジェクトでは上書きできない</td><td>組織・マシン全体</td><td>IT 管理者</td><td><a href="#s5-8">5-8</a></td></tr>
+          <tr><td><strong>権限モード</strong></td><td>確認ダイアログの頻度のベースライン（読むだけ／編集も／すべて）</td><td>セッション全体</td><td>利用者（<code>Shift+Tab</code>）</td><td><a href="#s5-2">5-2</a></td></tr>
+          <tr><td><strong>権限ルール</strong></td><td>ツール名と引数のパターンごとに、許可・確認・拒否</td><td>ツール × 引数</td><td>利用者・チーム（設定ファイル）</td><td><a href="#s5-4">5-4</a></td></tr>
+          <tr><td><strong>サンドボックス</strong></td><td>Bash がファイルシステムとネットワークのどこに触れるか</td><td>OS レベルの境界</td><td>利用者・チーム</td><td><a href="#s5-5">5-5</a></td></tr>
+          <tr><td><strong>フック</strong></td><td>決まったイベントで<strong>自分のプログラム</strong>を必ず走らせる。ブロック・整形・通知・監査</td><td>イベント × 任意の条件</td><td>利用者・チーム</td><td><a href="#s5-6">5-6</a> / <a href="#s5-7">5-7</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h4>どれを使うか</h4>
+    <ul>
+      <li>「確認が多すぎる／少なすぎる」→ <strong>権限モード</strong>を変える。日常は <code>acceptEdits</code></li>
+      <li>「このコマンドは毎回許可したい／絶対に通したくない」→ <strong>権限ルール</strong>の <code>allow</code> / <code>deny</code></li>
+      <li>「確認を減らしたいが、勝手に外に出てほしくない」→ <strong>サンドボックス</strong></li>
+      <li>「編集のたびに整形したい」「特定条件で止めたい」「終わったら通知したい」→ <strong>フック</strong></li>
+      <li>「チーム全員に強制したい」→ <strong>管理設定</strong>。行動指針の共有なら管理 CLAUDE.md（強制ではない）</li>
+    </ul>
+    <div class="note">
+      <span class="label">CLAUDE.md との切り分け</span>
+      <p>CLAUDE.md に「.env を触るな」と書くのは<strong>依頼</strong>、権限ルールで <code>Read(./.env)</code> を <code>deny</code> するのは<strong>強制</strong>です。守られなければ困る規則はこの章の手段へ、守られると嬉しい程度の指針は <a href="ch02-skills-prompts-rules.html">2 章</a> の手段へ。置き場所はこれで一意に決まります。</p>
+    </div>
+    <div class="src"><span class="label">Source</span><ul><li><a href="https://code.claude.com/docs/ja/permissions">権限を設定する</a> / <a href="https://code.claude.com/docs/ja/security">セキュリティ</a> / <a href="https://code.claude.com/docs/ja/hooks-guide">hooks でアクションを自動化する</a></li></ul></div>
+  </article>
+
+  <article class="slide" id="s5-2" data-slide="5-2" data-slide-title="権限モード">
+    <h3>5-2. 権限モード</h3>
+    <p><code>Shift+Tab</code> が巡回するのは <code>default</code>（Manual）→ <code>acceptEdits</code> → <code>plan</code> の 3 つです。<code>auto</code> はアカウントが利用条件を満たすときだけ、<code>bypassPermissions</code> は有効化フラグ付きで起動したときだけサイクルに加わり、<code>dontAsk</code> は <code>--permission-mode dontAsk</code> でのみ設定します。モードは「ベースライン」で、この上に個別の許可／確認／拒否ルール（<a href="#s5-4">5-4</a>）を重ねます。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>モード</th><th>確認なしで実行されるもの</th><th>最適な用途</th></tr></thead>
+        <tbody>
+          <tr><td><code>bypassPermissions</code></td><td>すべて（チェックなし）</td><td>⚠ 隔離コンテナ・VM のみ</td></tr>
+          <tr><td><code>auto</code></td><td>すべて。ただしバックグラウンドの安全チェック（分類器）付き</td><td>長時間の自律タスク。<strong>Pro / Max / Team ではターミナル・VS Code の既定の開始モード</strong>（v2.1.228 以降）。<code>claude -p</code>・Enterprise・API キー等は <code>default</code> のまま。設定で変えるなら<strong>ユーザー設定</strong>の <code>defaultMode</code>（プロジェクト設定の <code>auto</code> は無視される）</td></tr>
+          <tr><td><code>dontAsk</code></td><td>事前承認済みツールのみ。それ以外は確認せず拒否</td><td>ロックダウンしたスクリプト</td></tr>
+          <tr><td><code>acceptEdits</code></td><td>読み取り＋ファイル編集＋一般的な FS コマンド（mkdir/mv/cp 等）</td><td>レビューしながらの反復開発。<strong>日常の現実的な選択</strong></td></tr>
+          <tr><td><code>default</code>（UI 表記：Manual）</td><td>読み取りのみ</td><td>導入初期、機密性の高い作業</td></tr>
+          <tr><td><code>plan</code></td><td>読み取りのみ（編集せず計画を提案）</td><td>変更前の調査・設計</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul>
+      <li><code>bypassPermissions</code> 以外では、<strong>保護されたパス</strong>（リポジトリ状態や Claude 自身の設定。<a href="#s5-5">5-5</a>）への書き込みは自動承認されません</li>
+      <li>拒否ルール・確認ルールは <code>bypassPermissions</code> を含む<strong>すべてのモードで有効</strong>です</li>
+      <li>既定モードは設定の <code>permissions.defaultMode</code> で固定できます</li>
+    </ul>
+    <div class="note warn">
+      <span class="label">最初に決めておくこと</span>
+      <p><code>bypassPermissions</code> と <code>--dangerously-skip-permissions</code> は、<strong>Claude が確認なしにあらゆるコマンドを実行できる状態</strong>です（<code>rm</code> も <code>git push</code> も通ります）。ローカルの実プロジェクトでは使わず、使うなら dev container・VM・クラウドセッションなどの隔離環境に限定してください。日常は <code>acceptEdits</code>、確認を減らしたいときは安全チェック付きの <code>auto</code> が現実的な選択です。</p>
+    </div>
+    <div class="try">
+      <span class="label">試してみる：Plan Mode で起動</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="claude --permission-mode plan">claude --permission-mode plan</span></code></pre></div>
+      <p>起動したら、そのまま次のように依頼します（このモードではソースは編集されません）。</p>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="README.md と主要な設定ファイルを読んで、テストを追加する計画を立てて">README.md と主要な設定ファイルを読んで、テストを追加する計画を立てて</span></code></pre></div>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/permission-modes">権限モードを選択する</a> / <a href="https://code.claude.com/docs/ja/permissions">権限を設定する</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s5-3" data-slide="5-3" data-slide-title="設定のスコープと優先順位">
+    <h3>5-3. 設定のスコープと優先順位</h3>
+    <p>権限ルール・フック・サンドボックスはすべて設定ファイルに書きます。<strong>どこに書くかが「誰に効くか」と「誰の設定が勝つか」を決めます</strong>。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>スコープ</th><th>場所</th><th>影響範囲</th><th>共有</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Managed</strong></td><td>サーバー管理設定 / plist / レジストリ / <code>managed-settings.json</code></td><td>組織またはマシンの全ユーザー</td><td>IT が配布</td></tr>
+          <tr><td><strong>Local</strong></td><td><code>.claude/settings.local.json</code></td><td>自分のみ（このリポジトリ）</td><td>×（gitignore）</td></tr>
+          <tr><td><strong>Project</strong></td><td><code>.claude/settings.json</code></td><td>リポジトリの全員</td><td>○（git にコミット）</td></tr>
+          <tr><td><strong>User</strong></td><td><code>~/.claude/settings.json</code></td><td>自分（全プロジェクト）</td><td>×</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <figure>
+      <svg viewBox="0 0 620 250" role="img" aria-label="設定の優先順位ピラミッド。上から管理設定、コマンドライン引数、ローカル、プロジェクト、ユーザーの順に優先度が下がる。">
+        <g font-size="12.5" style="fill:var(--text)">
+          <rect x="150" y="16" width="320" height="38" rx="5" stroke-width="1.6" style="fill:var(--accent-bg);stroke:var(--accent)"/>
+          <text x="310" y="40" text-anchor="middle">1. Managed 設定（組織ポリシー・上書き不可）</text>
+
+          <rect x="130" y="60" width="360" height="38" rx="5" style="fill:var(--surface-2);stroke:var(--line-strong)"/>
+          <text x="310" y="84" text-anchor="middle">2. コマンドライン引数（--settings 等）</text>
+
+          <rect x="110" y="104" width="400" height="38" rx="5" style="fill:var(--surface-2);stroke:var(--line-strong)"/>
+          <text x="310" y="128" text-anchor="middle">3. ローカル設定 .claude/settings.local.json</text>
+
+          <rect x="90" y="148" width="440" height="38" rx="5" style="fill:var(--surface-2);stroke:var(--line-strong)"/>
+          <text x="310" y="172" text-anchor="middle">4. プロジェクト設定 .claude/settings.json</text>
+
+          <rect x="70" y="192" width="480" height="38" rx="5" style="fill:var(--surface-2);stroke:var(--line-strong)"/>
+          <text x="310" y="216" text-anchor="middle">5. ユーザー設定 ~/.claude/settings.json</text>
+        </g>
+        <text x="600" y="40" text-anchor="end" font-size="10.5" style="font-family:var(--font-mono);fill:var(--muted)">HIGH</text>
+        <text x="600" y="216" text-anchor="end" font-size="10.5" style="font-family:var(--font-mono);fill:var(--muted)">LOW</text>
+      </svg>
+      <figcaption>図 5-1：設定の優先順位。管理設定はコマンドライン引数でも上書きできない。</figcaption>
+    </figure>
+    <div class="note">
+      <span class="label">配列は「マージ」される</span>
+      <p><code>permissions.allow</code> や <code>hooks</code>、<code>sandbox.filesystem.allowWrite</code> のような<strong>配列型の設定は置換ではなく連結・重複排除</strong>されます。低優先度のスコープでもエントリを追加できるということです。チームの <code>settings.json</code> に共通の許可を置き、個人の追加は <code>settings.local.json</code> に書く、という併用ができます。</p>
+    </div>
+    <p>実効設定の確認は <code>/status</code>、<code>/config</code>、<code>/doctor</code> で行えます。ほかの機能の置き場所も同じ規則で、スキルは <code>~/.claude/skills/</code> と <code>.claude/skills/</code>、CLAUDE.md は <code>~/.claude/CLAUDE.md</code> と <code>./CLAUDE.md</code> です（<a href="ch02-skills-prompts-rules.html">2 章</a>）。</p>
+    <div class="src"><span class="label">Source</span><ul><li><a href="https://code.claude.com/docs/ja/settings">Claude Code の設定 — 設定の優先度／スコープの相互作用</a> / <a href="https://code.claude.com/docs/en/settings-reference">設定リファレンス（全キー・英語版）</a></li></ul></div>
+  </article>
+
+  <article class="slide" id="s5-4" data-slide="5-4" data-slide-title="権限ルールの書き方">
+    <h3>5-4. 権限ルールの書き方</h3>
+    <p>ルールは <code>Tool</code> または <code>Tool(specifier)</code> の形式。<strong>評価順は deny → ask → allow</strong> で、最初にマッチしたものが結果を決めます（ルールの詳細度は順序を変えません）。</p>
+    <pre><code>{
+  "permissions": {
+    "allow": [
+      "Bash(npm run test:*)",
+      "Read(./src/**)",
+      "Skill(commit)"
+    ],
+    "ask": [
+      "Bash(git push:*)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Read(./.env)",
+      "WebFetch(domain:internal.example.com)"
+    ],
+    "defaultMode": "acceptEdits"
+  }
+}</code></pre>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>書き方</th><th>意味</th></tr></thead>
+        <tbody>
+          <tr><td><code>Bash</code></td><td>すべての Bash 呼び出し。<strong>deny に書くとツール自体が Claude から見えなくなる</strong></td></tr>
+          <tr><td><code>Bash(npm run build)</code></td><td>コマンド完全一致</td></tr>
+          <tr><td><code>Bash(npm run test:*)</code></td><td>前方一致（<code>:*</code>）。引数付きの実行を許す定番の書き方</td></tr>
+          <tr><td><code>Bash(aws *)</code></td><td>ワイルドカード（<code>*</code> は任意位置に置ける）</td></tr>
+          <tr><td><code>Read(./.env)</code> / <code>Edit(src/**)</code></td><td>パス指定</td></tr>
+          <tr><td><code>WebFetch(domain:example.com)</code></td><td>ドメイン指定</td></tr>
+          <tr><td><code>Skill(name)</code> / <code>Skill(name *)</code></td><td>スキルの完全一致／前方一致</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note warn">
+      <span class="label">落とし穴</span>
+      <p>広い deny ルールは、より狭い allow ルールより<strong>常に優先</strong>します。<code>Bash(aws *)</code> を deny しつつ <code>Bash(aws s3 ls)</code> だけ allow する、という書き方はできません。また <code>Bash(command:rm *)</code> のようなパラメータ指定は複合コマンドで回避可能なため無視され、起動時に警告が出ます（正しくは <code>Bash(rm *)</code>）。</p>
+    </div>
+    <div class="try">
+      <span class="label">試してみる：安全なコマンドを許可リストに入れる</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="/permissions">/permissions      # 一覧表示と、この画面からの追加・編集</span></code></pre></div>
+      <p><code>npm test</code> や <code>git status</code> のような安全なコマンドを <code>allow</code> に入れると、プロンプト疲れが消え、確認の判断力を危険な操作に温存できます。権限は <code>/permissions</code> から足すのが安全です（既存の <code>settings.local.json</code> をコピペで上書きして壊さずに済みます）。</p>
+    </div>
+    <div class="src"><span class="label">Source</span><ul><li><a href="https://code.claude.com/docs/ja/permissions">権限を設定する — ルール構文／ツール別のルール</a></li></ul></div>
+  </article>
+
+  <article class="slide" id="s5-5" data-slide="5-5" data-slide-title="作業ディレクトリ境界とサンドボックス">
+    <h3>5-5. 作業ディレクトリ境界とサンドボックス</h3>
+    <ul>
+      <li><strong>境界</strong>：Claude が書き込めるのは起動ディレクトリとそのサブディレクトリ。範囲外の読み取りは承認プロンプトの後に可能</li>
+      <li><strong>追加ディレクトリ</strong>：<code>--add-dir</code> / <code>/add-dir</code> で拡張。追加先の設定は原則読み込まれない（スキルなど一部だけ読まれる。設定ファイルの <code>permissions.additionalDirectories</code> で追加した場合はファイルアクセスのみ）</li>
+      <li><strong>サンドボックス化された Bash</strong>：<code>/sandbox</code> で有効化。ファイルシステムとネットワークを分離し、権限プロンプトを減らしつつ安全に自律実行させる</li>
+      <li>より強い分離が必要なら dev container、Docker、VM、あるいはクラウドセッション（隔離 VM）を使う</li>
+    </ul>
+    <h4>組み込みの保護</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>保護</th><th>何が起きるか</th></tr></thead>
+        <tbody>
+          <tr><td>読み取り専用コマンド</td><td><code>ls</code>、<code>cat</code>、<code>git status</code> 等はプロンプトなしで実行される</td></tr>
+          <tr><td>ネットワーク取得</td><td><code>curl</code> / <code>wget</code> は<strong>自動承認されない</strong></td></tr>
+          <tr><td>コマンドインジェクション検出</td><td>疑わしい Bash は許可済みでも手動承認が必要になる</td></tr>
+          <tr><td>フェイルクローズド</td><td>どのルールにもマッチしないコマンドは既定で手動承認</td></tr>
+          <tr><td>WebFetch の分離</td><td><strong>別コンテキストウィンドウ</strong>で処理し、プロンプトインジェクションの波及を抑える</td></tr>
+          <tr><td><strong>保護されたパス</strong></td><td><code>.git</code> <code>.claude</code>（<code>.claude/worktrees</code> を除く）<code>.vscode</code> <code>.gitconfig</code> <code>.zshrc</code> <code>.mcp.json</code> などへの書き込みは、<code>bypassPermissions</code> 以外のすべてのモードで<strong>自動承認されない</strong>。<code>permissions.allow</code> でも事前承認できない</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="try">
+      <span class="label">試してみる：サンドボックスを有効化</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="/sandbox">/sandbox</span></code></pre></div>
+      <p>現在のサンドボックス状態（有効／無効、許可されたドメイン、書き込み可能パス）が表示され、その場で切り替えられます。有効にしてから <code>curl</code> を含む作業をさせると、権限プロンプトの回数が減るのを体感できます。</p>
+    </div>
+    <div class="src"><span class="label">Source</span><ul><li><a href="https://code.claude.com/docs/ja/security">セキュリティ</a> / <a href="https://code.claude.com/docs/ja/sandboxing">サンドボックス化された Bash ツール</a> / <a href="https://code.claude.com/docs/ja/permission-modes#protected-paths">保護されたパス</a></li></ul></div>
+  </article>
+
+  <article class="slide" id="s5-6" data-slide="5-6" data-slide-title="フックのライフサイクルとイベント">
+    <h3>5-6. フックのライフサイクルとイベント</h3>
+    <p>フックは Claude Code のライフサイクル上の特定イベントで<strong>必ず</strong>実行される、あなたのプログラムです。権限ルールが「止める・通す」の 2 択なのに対し、フックは整形・検証・通知・監査など<strong>任意の処理</strong>を差し込めます。イベントは大きく 3 つのケイデンスに分かれます。</p>
+    <figure>
+      <svg viewBox="0 0 760 318" role="img" aria-label="フックのライフサイクル図。セッション単位、ターン単位、ツール呼び出し単位の3階層でイベントが発火する。">
+        <rect x="20" y="30" width="720" height="250" rx="12" fill="none" stroke-dasharray="4 4" style="stroke:var(--line-strong)"/>
+        <text x="34" y="52" font-size="11.5" style="font-family:var(--font-mono);fill:var(--accent)">SESSION</text>
+        <rect x="34" y="62" width="140" height="34" rx="5" style="fill:var(--accent-bg);stroke:var(--accent-soft)"/>
+        <text x="104" y="84" text-anchor="middle" font-size="12" style="fill:var(--text)">SessionStart</text>
+        <rect x="586" y="62" width="140" height="34" rx="5" style="fill:var(--accent-bg);stroke:var(--accent-soft)"/>
+        <text x="656" y="84" text-anchor="middle" font-size="12" style="fill:var(--text)">SessionEnd</text>
+
+        <rect x="56" y="108" width="648" height="152" rx="10" fill="none" style="stroke:var(--line-strong)"/>
+        <text x="70" y="128" font-size="11.5" style="font-family:var(--font-mono);fill:var(--accent)">TURN</text>
+        <rect x="70" y="136" width="152" height="34" rx="5" style="fill:var(--surface-2);stroke:var(--line-strong)"/>
+        <text x="146" y="158" text-anchor="middle" font-size="12" style="fill:var(--text)">UserPromptSubmit</text>
+        <rect x="540" y="136" width="152" height="34" rx="5" style="fill:var(--surface-2);stroke:var(--line-strong)"/>
+        <text x="616" y="158" text-anchor="middle" font-size="12" style="fill:var(--text)">Stop / StopFailure</text>
+
+        <rect x="94" y="182" width="572" height="62" rx="8" style="fill:var(--ink-soft);stroke:var(--ink)"/>
+        <text x="108" y="202" font-size="11.5" style="font-family:var(--font-mono);fill:var(--ink)">AGENTIC LOOP（ツール呼び出しごと）</text>
+        <g font-size="11.5" style="fill:var(--text)">
+          <text x="112" y="226">PreToolUse</text>
+          <text x="212" y="226">PermissionRequest</text>
+          <text x="336" y="226">PostToolUse</text>
+          <text x="436" y="226">PostToolUseFailure</text>
+          <text x="566" y="226">PostToolBatch</text>
+        </g>
+        <g stroke-width="1" opacity=".6" style="stroke:var(--muted)">
+          <path d="M186,220 H206"/><path d="M322,220 H332"/><path d="M424,220 H432"/><path d="M552,220 H562"/>
+        </g>
+        <text x="380" y="300" text-anchor="middle" font-size="10.5" style="fill:var(--muted)">この他に PreCompact/PostCompact・ConfigChange・FileChanged・InstructionsLoaded などが発火</text>
+      </svg>
+      <figcaption>図 5-2：フックの 3 階層。セッションごとに 1 回／ターンごとに 1 回／ツール呼び出しごと。</figcaption>
+    </figure>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>イベント</th><th>発火タイミング</th></tr></thead>
+        <tbody>
+          <tr><td><code>SessionStart</code> / <code>SessionEnd</code></td><td>セッション開始・再開時／終了時</td></tr>
+          <tr><td><code>UserPromptSubmit</code></td><td>プロンプト送信後、Claude が処理する前</td></tr>
+          <tr><td><code>PreToolUse</code></td><td>ツール実行前（<strong>ブロック可能</strong>）</td></tr>
+          <tr><td><code>PermissionRequest</code> / <code>PermissionDenied</code></td><td>権限判断が必要なとき／auto モードが拒否したとき</td></tr>
+          <tr><td><code>PostToolUse</code> / <code>PostToolUseFailure</code></td><td>ツール成功後／失敗後</td></tr>
+          <tr><td><code>Notification</code></td><td>Claude Code が通知を送るとき（入力待ちなど）</td></tr>
+          <tr><td><code>Stop</code> / <code>StopFailure</code></td><td>Claude の応答終了時／API エラーでターンが終了したとき</td></tr>
+          <tr><td><code>InstructionsLoaded</code></td><td>CLAUDE.md や rules が読み込まれたとき（<a href="ch02-skills-prompts-rules.html#s2-8">2-8</a> の診断に有用）</td></tr>
+          <tr><td><code>PreCompact</code> / <code>PostCompact</code></td><td>コンテキスト圧縮の前後</td></tr>
+          <tr><td><code>PreModelSwitch</code> / <code>PostModelSwitch</code></td><td>モデル切り替えの前後</td></tr>
+          <tr><td><code>ConfigChange</code> / <code>CwdChanged</code> / <code>FileChanged</code></td><td>設定変更／作業ディレクトリ変更／監視ファイル変更</td></tr>
+          <tr><td><code>WorktreeCreate</code> / <code>WorktreeRemove</code></td><td>worktree 作成・削除</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>サブエージェントや外部連携に関するイベント（<code>SubagentStart</code>、<code>Elicitation</code> など）もありますが、本資料の範囲外です。全一覧は公式リファレンスを参照してください。</p>
+    <div class="src"><span class="label">Source</span><ul><li><a href="https://code.claude.com/docs/ja/hooks">Hooks リファレンス — フックライフサイクル／Hook イベント</a></li></ul></div>
+  </article>
+
+  <article class="slide" id="s5-7" data-slide="5-7" data-slide-title="フックの設定・入出力・ユースケース">
+    <h3>5-7. フックの設定・入出力・ユースケース</h3>
+    <p>設定ファイル（<code>~/.claude/settings.json</code>、<code>.claude/settings.json</code> など。<a href="#s5-3">5-3</a>）の <code>hooks</code> キーに定義します。<code>/hooks</code> メニューからも編集できます。</p>
+    <pre><code>{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          { "type": "command", "command": "jq -r '.tool_input.file_path' | xargs npx prettier --write" }
+        ]
+      }
+    ]
+  }
+}</code></pre>
+    <h4>入出力の約束ごと</h4>
+    <ul>
+      <li>入力：イベントの JSON コンテキストが <strong>stdin</strong>（コマンドフック）または <strong>POST ボディ</strong>（HTTP フック）で渡される。<strong>編集対象のパスを受け取る環境変数は用意されていない</strong>ので、<code>jq -r '.tool_input.file_path'</code> のように stdin の JSON から取り出す（環境変数で渡るのは <code>CLAUDE_PROJECT_DIR</code> などに限られる）</li>
+      <li>出力その 1（終了コード）：<code>exit 0</code> = 通過、<code>exit 2</code> = <strong>ブロック</strong>し、stderr の内容が Claude へのフィードバックになる</li>
+      <li>出力その 2（構造化 JSON）：<code>exit 0</code> ＋ JSON で決定を細かく制御。<strong>exit 2 と JSON の併用は不可</strong></li>
+      <li>フックの種類は 5 つ：<code>command</code>（シェル）／<code>http</code>（POST）／<code>mcp_tool</code>／<code>prompt</code>（LLM に判定させる）／<code>agent</code>（サブエージェントで検証）。<code>prompt</code>・<code>agent</code> 型は発火は決定論的でも判定はモデルに委ねるので確率的</li>
+    </ul>
+    <pre><code>#!/bin/bash
+# PreToolUse: 危険な SQL をブロックする例
+INPUT=$(cat)                                            # stdin の JSON を受け取る
+COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command')  # 実行されようとしているコマンド
+if echo "$COMMAND" | grep -q "DROP TABLE"; then
+  echo "Blocked: dropping tables is not allowed" >&2    # stderr が Claude へのフィードバック
+  exit 2                                                # exit 2 = ブロック
+fi
+exit 0</code></pre>
+    <h4>典型的なユースケース</h4>
+    <div class="cards">
+      <div class="card"><span class="tag">PostToolUse</span><h5>編集後の自動整形・検証</h5><p>Write/Edit にマッチさせて Prettier・gofmt・ruff や Lint を実行。結果はテキストとして Claude に返り、<strong>機械的な合否を毎周回のコンテキストに入れる</strong>（<a href="ch03-agent-loop-harness.html#p-loop">3-6 ループ</a>）を人手なしで成立させる。</p></div>
+      <div class="card"><span class="tag">PreToolUse</span><h5>保護ファイルの編集を遮断</h5><p><code>.env</code>、本番設定、マイグレーション済みファイルへの書き込みを exit 2 で拒否。</p></div>
+      <div class="card"><span class="tag">Notification</span><h5>入力待ちを通知</h5><p>Claude が確認を求めたときに OS 通知・Slack・LINE などへ ping。</p></div>
+      <div class="card"><span class="tag">Stop</span><h5>ターン終了時の検証</h5><p>作業ツリー全体をスキャンして未整形・未テストを検出。exit 2 で返せば、通るまで作業を終えさせない。</p></div>
+      <div class="card"><span class="tag">PostCompact</span><h5>圧縮後の再注入</h5><p>コンパクションで失われがちな重要コンテキストを再投入する。</p></div>
+      <div class="card"><span class="tag">ConfigChange</span><h5>設定変更の監査</h5><p>セッション中の設定変更を記録、あるいはブロックする。</p></div>
+    </div>
+    <div class="note">
+      <span class="label">Bash 経由の変更に注意</span>
+      <p>Claude は <code>Bash</code> ツールからもファイルを変更できます。すべての変更を捕捉したい監査用途では、ターンごとに 1 回作業ツリーを走査する <code>Stop</code> フックを併用してください。</p>
+    </div>
+    <h4>スコープとトラブルシューティング</h4>
+    <ul>
+      <li>フックは<strong>マージ</strong>される。ユーザー設定・プロジェクト設定・スキル定義の全てが該当イベントで発火する</li>
+      <li>プロジェクト設定のフックは、そのフォルダの<strong>ワークスペーストラストを承認した後</strong>に有効になる</li>
+      <li>スクリプトは <code>${CLAUDE_PROJECT_DIR}</code> を使って絶対パスで参照すると安定する</li>
+      <li>発火しないときは <code>/hooks</code> で登録状況を確認し、スクリプトを手動実行して終了コードを検証する</li>
+    </ul>
+    <pre><code>echo '{"tool_name":"Bash","tool_input":{"command":"ls"}}' | ./my-hook.sh
+echo $?   # 終了コードを確認</code></pre>
+    <div class="note warn">
+      <span class="label">セキュリティ</span>
+      <p>フックは<strong>あなたの権限で任意のシェルコマンドを実行</strong>します。他人が書いたフック（リポジトリ由来・配布物）は、信頼する前に必ず中身を読んでください。</p>
+    </div>
+    <div class="try">
+      <span class="label">試してみる：最小のフックを入れる</span>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="/hooks">/hooks        # メニューから対話的に追加するのが最も安全</span></code></pre></div>
+      <p>ファイルで書くなら以下。<strong><code>.claude/settings.local.json</code> が既にある場合は上書きされる</strong>ので、既存があるときは手で追記してください。</p>
+      <div class="code-wrap"><pre><code><span class="cmd" data-copy="mkdir -p .claude">mkdir -p .claude</span><span class="cmd" data-copy="cat &gt; .claude/settings.local.json &lt;&lt;&#x27;EOF&#x27;&#10;{&#10;  &quot;hooks&quot;: {&#10;    &quot;Stop&quot;: [&#10;      { &quot;matcher&quot;: &quot;&quot;, &quot;hooks&quot;: [&#10;        { &quot;type&quot;: &quot;command&quot;, &quot;command&quot;: &quot;echo \&quot;turn finished at $(date)\&quot; &gt;&gt; \&quot;$CLAUDE_PROJECT_DIR/.claude/hook.log\&quot;&quot; }&#10;      ]}&#10;    ]&#10;  }&#10;}&#10;EOF">cat &gt; .claude/settings.local.json &lt;&lt;'EOF'
+{
+  "hooks": {
+    "Stop": [
+      { "matcher": "", "hooks": [
+        { "type": "command", "command": "echo \"turn finished at $(date)\" &gt;&gt; \"$CLAUDE_PROJECT_DIR/.claude/hook.log\"" }
+      ]}
+    ]
+  }
+}
+EOF</span></code></pre></div>
+      <p>セッションを開き直し、<code>/hooks</code> で登録を確認。1 ターン話すと <code>.claude/hook.log</code> が増えます。後始末は <code>.claude/settings.local.json</code> の <code>hooks</code> ブロックを削除。</p>
+    </div>
+    <div class="src"><span class="label">Source</span><ul><li><a href="https://code.claude.com/docs/ja/hooks-guide">hooks でアクションを自動化する</a> / <a href="https://code.claude.com/docs/ja/hooks">Hooks リファレンス — 入出力・終了コード・JSON 出力・設定</a></li></ul></div>
+  </article>
+
+  <article class="slide" id="s5-8" data-slide="5-8" data-slide-title="組織の管理設定">
+    <h3>5-8. 組織の管理設定</h3>
+    <p>個人利用なら既定のままでも動きますが、チーム・組織で使うなら、<strong>技術的な強制は「管理設定」、行動指針は「管理 CLAUDE.md」</strong>と役割を分けます。設定ルールは Claude の判断に関係なくクライアントが強制しますが、CLAUDE.md はあくまで指示です。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>テーマ</th><th>手段</th></tr></thead>
+        <tbody>
+          <tr><td>ポリシー配布</td><td>管理設定（MDM / グループポリシー / <code>managed-settings.json</code>）、サーバー管理設定。個人・プロジェクト設定では上書きできない（<a href="#s5-3">5-3</a>）</td></tr>
+          <tr><td>認証の統制</td><td><code>forceLoginMethod</code>、<code>forceLoginOrgUUID</code>、SSO。個人アカウントでの無管理利用を防ぐ</td></tr>
+          <tr><td>行動指針の統一</td><td>管理 CLAUDE.md（除外不可。<a href="ch02-skills-prompts-rules.html#s2-2">2-2</a>）</td></tr>
+          <tr><td>モデルと努力レベルの制限</td><td><code>availableModels</code> 許可リスト、組織デフォルトモデル、努力レベル上限</td></tr>
+          <tr><td>権限の強制</td><td>管理設定の <code>permissions.deny</code>（機密パス・危険コマンド）、<code>defaultMode</code>、サンドボックスの強制、<code>disableSkillShellExecution</code></td></tr>
+          <tr><td>データ保護</td><td>データ利用ポリシー、ゼロデータ保持（ZDR、対象アカウント）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h4>データはどこへ行くか</h4>
+    <p>導入審査で最初に問われる論点です。送信されるのは<strong>コンテキストに入ったもの</strong>、つまりあなたのプロンプト、<strong>Claude が読んだファイルの内容</strong>、実行したコマンドの出力、CLAUDE.md や読み込まれたルールです。裏返すと、<strong>リポジトリ全体が自動でアップロードされるわけではありません</strong>。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>アカウント</th><th>学習への利用</th><th>データ保持</th></tr></thead>
+        <tbody>
+          <tr><td>商用（Team / Enterprise / API / Bedrock 等）</td><td><strong>コードやプロンプトを生成モデルの学習に使わない</strong>（Development Partner Program に明示的にオプトインした場合を除く）</td><td>商用条件に従う。対象アカウントは<a href="https://code.claude.com/docs/ja/zero-data-retention">ゼロデータ保持（ZDR）</a>も選択可</td></tr>
+          <tr><td>コンシューマー（Free / Pro / Max）</td><td><strong>設定で選択できる</strong>。許可すると新モデルの学習に使われる</td><td>許可時は 5 年、不許可なら 30 日</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h4>プロンプトインジェクション</h4>
+    <p>Web ページ、Issue、ログなど<strong>外部から取り込んだ内容は「データ」であって「指示」ではない</strong>、が基本原則です。製品側は権限システム・入力サニタイズ・ネットワークコマンドの承認・分離コンテキストでの Web fetch・信頼検証で多層防御し、利用者側は承認前にコマンドを読む、信頼できないコンテンツを直接パイプしない、重要ファイルの変更差分を確認する、で守ります。<strong><code>-p</code> の非対話実行では信頼検証が無効</strong>になる点に注意してください。</p>
+    <h4>導入リスクと緩和策</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>リスク</th><th>何が起きるか</th><th>緩和策</th></tr></thead>
+        <tbody>
+          <tr><td>機密情報の外部送信</td><td>秘密鍵や個人情報を含むファイルを Claude が読み、送信される</td><td><code>deny</code> ルール（<code>Read(./.env)</code> 等）、<code>/sandbox</code>、管理設定で強制、必要なら ZDR</td></tr>
+          <tr><td>破壊的なコマンドの実行</td><td>DB 削除、強制 push、デプロイなど<strong>巻き戻せない</strong>操作</td><td>チェックポイントは Bash 経由の変更と外部副作用を戻せない（<a href="ch04-sessions-checkpoints.html#s4-2">4-2</a>）。<code>PreToolUse</code> フックで<strong>強制的に</strong>遮断、権限モードは <code>acceptEdits</code> か <code>auto</code> まで</td></tr>
+          <tr><td>拡張機能のサプライチェーン</td><td>他人のスキル・フック・プラグイン・MCP サーバーが<strong>あなたの権限で任意コードを実行</strong></td><td>導入前に中身を読む、<code>disableSkillShellExecution</code>、信頼する提供元に限定</td></tr>
+          <tr><td>コストの想定外の膨張</td><td>並列セッション・定期ループ・大規模バッチでトークンが急増</td><td>支出上限、<code>/usage</code> の定点観測（<a href="ch06-context-cost-caching.html#s6-5">6-5</a>）</td></tr>
+          <tr><td>レビュー体制の形骸化</td><td>生成量が増え、読まずに承認される</td><td>自動レビューは前処理と位置づける。「差分を作成者が説明できること」をマージ条件にする</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="src">
+      <span class="label">Source</span>
+      <ul>
+        <li><a href="https://code.claude.com/docs/ja/admin-setup">組織向けセットアップ</a> / <a href="https://code.claude.com/docs/en/managed-settings">管理設定のデプロイ（英語版）</a></li>
+        <li><a href="https://code.claude.com/docs/ja/security">セキュリティ — プロンプトインジェクションから保護する</a> / <a href="https://code.claude.com/docs/ja/data-usage">データ使用（学習ポリシー・保持期間）</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="slide" id="s5-9" data-slide="5-9" data-slide-title="この章の持ち帰り">
+    <h3>5-9. この章の持ち帰り</h3>
+    <p>権限ルールは<strong>評価順を知らないと必ずハマります</strong>。フックは「お願い」を「強制」に変える唯一の層で、書き方の型さえ知れば 5 分で入ります。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>覚えること</th><th>仕事での効き目</th><th>具体的な操作</th></tr></thead>
+        <tbody>
+          <tr><td><strong>止められるのはツール実行の直前だけ。送られるのはコンテキストに入ったものだけ</strong></td><td>権限ルール・サンドボックス・保護パス・フックが同じ 1 か所に集まる理由が分かる。「守らせたい規則は設定へ、頼みたい指針は CLAUDE.md へ」と振り分けて設計できる。導入審査では「Claude が読んだ範囲だけが送られる」と原理から説明できる</td><td><a href="ch03-agent-loop-harness.html#p-control">3-6 ガードレール</a>・<a href="ch03-agent-loop-harness.html#p-context">3-6 コンテキスト</a></td></tr>
+          <tr><td><strong><code>Shift+Tab</code> で権限モードを回す。日常は <code>acceptEdits</code></strong></td><td>確認の頻度を作業内容に合わせて即座に変えられる。<code>bypassPermissions</code> は隔離環境以外で使わない</td><td>default → acceptEdits → plan</td></tr>
+          <tr><td><strong>評価順は deny → ask → allow</strong></td><td>最初にマッチしたものが結果を決める。広い deny は狭い allow より<strong>常に</strong>優先</td><td><code>/permissions</code> から足す</td></tr>
+          <tr><td><strong>配列型の設定はマージされる</strong></td><td>チームの <code>settings.json</code> と個人の <code>settings.local.json</code> を併用できる</td><td><code>permissions.allow</code>、<code>hooks</code></td></tr>
+          <tr><td><strong>フックのパスは stdin の JSON から取る</strong></td><td>編集対象のパスを渡す環境変数は<strong>用意されていない</strong>。ここで詰まる人が多い</td><td><code>jq -r '.tool_input.file_path'</code></td></tr>
+          <tr><td><strong><code>exit 2</code> でブロック、stderr がフィードバック</strong></td><td>禁止するだけでなく「なぜ駄目か」を Claude に伝えて別の手を打たせられる</td><td><code>echo "理由" &gt;&amp;2; exit 2</code></td></tr>
+          <tr><td><strong>整形・Lint・通知はフックに移す</strong></td><td>毎回頼まなくても必ず走る。レビューでの指摘が定型作業から消える</td><td><code>PostToolUse</code> に <code>Write|Edit</code> でマッチ</td></tr>
+          <tr><td><strong>保護されたパスは事前承認できない</strong></td><td><code>.git</code> <code>.claude</code> <code>.gitconfig</code> などへの書き込みは <code>permissions.allow</code> でも通らない</td><td>設計どおりの挙動。回避しない</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="label">意外と知られていない</span>
+      <p><strong><code>Bash(aws *)</code> を deny しつつ <code>Bash(aws s3 ls)</code> だけ allow する、という書き方はできません。</strong>広い deny が常に勝つためで、権限設計でいちばん多いつまずきです。もう一つ、<strong>フックの種類は 5 つあり、シェルコマンドだけではありません</strong>。「機械的には判定できないが必ずチェックしたい」ものを <code>prompt</code> フックに置けるのは、意外と知られていない使い道です。</p>
+    </div>
+  </article>
+</section>
+
+</main>
+</div>
+
+<script src="assets/app.js"></script>
+<script src="assets/toc.js"></script>
+<script src="assets/nav.js"></script>
+</body>
+</html>
